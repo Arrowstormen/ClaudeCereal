@@ -9,8 +9,8 @@ public class Cereal
     [Required]
     public string Name { get; set; } = null!;
 
-    public string? Mfr { get; set; }
-    public string? Type { get; set; }
+    public Manufacturer? Mfr { get; set; }
+    public CerealType? Type { get; set; }
     public int? Calories { get; set; }
     public int? Protein { get; set; }
     public int? Fat { get; set; }

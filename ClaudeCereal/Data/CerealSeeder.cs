@@ -31,8 +31,8 @@ public static class CerealSeeder
         return new Cereal
         {
             Name     = f[0].Trim(),
-            Mfr      = NullIfEmpty(f[1]),
-            Type     = NullIfEmpty(f[2]),
+            Mfr      = ParseEnum<Manufacturer>(f[1]),
+            Type     = ParseEnum<CerealType>(f[2]),
             Calories = ParseInt(f[3]),
             Protein  = ParseInt(f[4]),
             Fat      = ParseInt(f[5]),
@@ -49,8 +49,8 @@ public static class CerealSeeder
         };
     }
 
-    private static string? NullIfEmpty(string s) =>
-        string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    private static T? ParseEnum<T>(string s) where T : struct, Enum =>
+        Enum.TryParse<T>(s.Trim(), ignoreCase: true, out var result) ? result : null;
 
     private static int? ParseInt(string s)
     {
