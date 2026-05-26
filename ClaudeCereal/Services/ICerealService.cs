@@ -6,7 +6,7 @@ public interface ICerealService
 {
     Task<IEnumerable<Cereal>> GetAllAsync();
     Task<Cereal?> GetByIdAsync(int id);
-    Task<Cereal> CreateAsync(Cereal cereal);
-    Task<Cereal?> UpdateAsync(int id, Cereal input);
+    Task<Cereal> CreateAsync(CerealDto dto);
+    Task<Cereal?> UpdateAsync(int id, CerealDto dto);
     Task<bool> DeleteAsync(int id);
 }
