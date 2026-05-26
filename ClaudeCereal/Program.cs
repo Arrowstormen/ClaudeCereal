@@ -11,6 +11,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         ?? "Data Source=cereals.db"));
 
 builder.Services.AddScoped<ICerealService, CerealService>();
+
+var imagePath = Path.Combine(
+    AppContext.BaseDirectory,
+    builder.Configuration["ImagePath"] ?? "Cereal Pictures");
+builder.Services.AddSingleton<ICerealImageService>(new CerealImageService(imagePath));
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -24,7 +30,7 @@ if (app.Environment.IsDevelopment())
 }
 
 var csvPath = builder.Configuration["CsvPath"]
-    ?? Path.Combine(AppContext.BaseDirectory, "cereal.csv");
+    ?? Path.Combine(AppContext.BaseDirectory, "Data", "cereal.csv");
 
 using (var scope = app.Services.CreateScope())
 {

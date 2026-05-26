@@ -1,5 +1,6 @@
 using ClaudeCereal.Models;
 using ClaudeCereal.Services;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace ClaudeCereal.Endpoints;
 
@@ -32,5 +33,17 @@ public static class CerealEndpoints
             await service.DeleteAsync(id)
                 ? Results.NoContent()
                 : Results.NotFound());
+
+        group.MapGet("/{id:int}/image", async (int id, ICerealService service, ICerealImageService imageService) =>
+        {
+            var cereal = await service.GetByIdAsync(id);
+            if (cereal is null) return Results.NotFound();
+
+            var imagePath = imageService.GetImagePath(cereal.Name);
+            if (imagePath is null) return Results.NotFound();
+
+            new FileExtensionContentTypeProvider().TryGetContentType(imagePath, out var contentType);
+            return Results.File(imagePath, contentType ?? "application/octet-stream");
+        });
     }
 }
