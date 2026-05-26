@@ -10,12 +10,19 @@ public class CerealService(AppDbContext db) : ICerealService
     {
         var query = db.Cereals.AsNoTracking().AsQueryable();
 
+        // Name
+        if (filter.Name is not null)
+            query = query.Where(c => c.Name == filter.Name);
+        if (filter.NameContains is not null)
+            query = query.Where(c => c.Name.Contains(filter.NameContains));
+        // Categorical
         if (filter.Manufacturer.HasValue)
             query = query.Where(c => c.Mfr == filter.Manufacturer);
         if (filter.Type.HasValue)
             query = query.Where(c => c.Type == filter.Type);
-        if (filter.Name is not null)
-            query = query.Where(c => c.Name.Contains(filter.Name));
+        if (filter.Shelf.HasValue)
+            query = query.Where(c => c.Shelf == filter.Shelf);
+        // Nutrition ranges
         if (filter.MinCalories.HasValue)
             query = query.Where(c => c.Calories >= filter.MinCalories);
         if (filter.MaxCalories.HasValue)
@@ -52,10 +59,41 @@ public class CerealService(AppDbContext db) : ICerealService
             query = query.Where(c => c.Vitamins >= filter.MinVitamins);
         if (filter.MaxVitamins.HasValue)
             query = query.Where(c => c.Vitamins <= filter.MaxVitamins);
+        // Serving size ranges
+        if (filter.MinWeight.HasValue)
+            query = query.Where(c => c.Weight >= filter.MinWeight);
+        if (filter.MaxWeight.HasValue)
+            query = query.Where(c => c.Weight <= filter.MaxWeight);
+        if (filter.MinCups.HasValue)
+            query = query.Where(c => c.Cups >= filter.MinCups);
+        if (filter.MaxCups.HasValue)
+            query = query.Where(c => c.Cups <= filter.MaxCups);
+        // Rating range
         if (filter.MinRating.HasValue)
             query = query.Where(c => c.Rating >= filter.MinRating);
         if (filter.MaxRating.HasValue)
             query = query.Where(c => c.Rating <= filter.MaxRating);
+
+        // Sorting
+        bool desc = filter.SortOrder?.Equals("desc", StringComparison.OrdinalIgnoreCase) ?? false;
+        query = filter.SortBy?.ToLowerInvariant() switch
+        {
+            "name"     => desc ? query.OrderByDescending(c => c.Name)     : query.OrderBy(c => c.Name),
+            "calories" => desc ? query.OrderByDescending(c => c.Calories) : query.OrderBy(c => c.Calories),
+            "protein"  => desc ? query.OrderByDescending(c => c.Protein)  : query.OrderBy(c => c.Protein),
+            "fat"      => desc ? query.OrderByDescending(c => c.Fat)      : query.OrderBy(c => c.Fat),
+            "sodium"   => desc ? query.OrderByDescending(c => c.Sodium)   : query.OrderBy(c => c.Sodium),
+            "fiber"    => desc ? query.OrderByDescending(c => c.Fiber)    : query.OrderBy(c => c.Fiber),
+            "carbo"    => desc ? query.OrderByDescending(c => c.Carbo)    : query.OrderBy(c => c.Carbo),
+            "sugars"   => desc ? query.OrderByDescending(c => c.Sugars)   : query.OrderBy(c => c.Sugars),
+            "potass"   => desc ? query.OrderByDescending(c => c.Potass)   : query.OrderBy(c => c.Potass),
+            "vitamins" => desc ? query.OrderByDescending(c => c.Vitamins) : query.OrderBy(c => c.Vitamins),
+            "shelf"    => desc ? query.OrderByDescending(c => c.Shelf)    : query.OrderBy(c => c.Shelf),
+            "weight"   => desc ? query.OrderByDescending(c => c.Weight)   : query.OrderBy(c => c.Weight),
+            "cups"     => desc ? query.OrderByDescending(c => c.Cups)     : query.OrderBy(c => c.Cups),
+            "rating"   => desc ? query.OrderByDescending(c => c.Rating)   : query.OrderBy(c => c.Rating),
+            _          => query.OrderBy(c => c.Id)
+        };
 
         return await query.ToListAsync();
     }

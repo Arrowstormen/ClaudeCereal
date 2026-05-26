@@ -1,9 +1,14 @@
 namespace ClaudeCereal.Models;
 
 public record CerealFilter(
+    // Name search
+    string? Name,
+    string? NameContains,
+    // Categorical
     Manufacturer? Manufacturer,
     CerealType? Type,
-    string? Name,
+    int? Shelf,
+    // Nutrition ranges
     int? MinCalories,
     int? MaxCalories,
     int? MinProtein,
@@ -22,6 +27,15 @@ public record CerealFilter(
     int? MaxPotass,
     int? MinVitamins,
     int? MaxVitamins,
+    // Serving size ranges
+    double? MinWeight,
+    double? MaxWeight,
+    double? MinCups,
+    double? MaxCups,
+    // Rating range
     double? MinRating,
-    double? MaxRating
+    double? MaxRating,
+    // Sorting
+    string? SortBy,
+    string? SortOrder
 );
