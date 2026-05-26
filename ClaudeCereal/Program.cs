@@ -1,6 +1,8 @@
+using ClaudeCereal.Authentication;
 using ClaudeCereal.Data;
 using ClaudeCereal.Endpoints;
 using ClaudeCereal.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -11,11 +13,19 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         ?? "Data Source=cereals.db"));
 
 builder.Services.AddScoped<ICerealService, CerealService>();
+
+builder.Services
+    .AddAuthentication("Basic")
+    .AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>("Basic", null);
+builder.Services.AddAuthorization();
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
