@@ -14,6 +14,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<ICerealService, CerealService>();
 
+var imagePath = Path.Combine(
+    AppContext.BaseDirectory,
+    builder.Configuration["ImagePath"] ?? "Cereal Pictures");
+builder.Services.AddSingleton<ICerealImageService>(new CerealImageService(imagePath));
+
 builder.Services
     .AddAuthentication("Basic")
     .AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>("Basic", null);
@@ -34,7 +39,7 @@ if (app.Environment.IsDevelopment())
 }
 
 var csvPath = builder.Configuration["CsvPath"]
-    ?? Path.Combine(AppContext.BaseDirectory, "cereal.csv");
+    ?? Path.Combine(AppContext.BaseDirectory, "Data", "cereal.csv");
 
 using (var scope = app.Services.CreateScope())
 {
