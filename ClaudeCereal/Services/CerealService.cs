@@ -75,7 +75,7 @@ public class CerealService(AppDbContext db) : ICerealService
             query = query.Where(c => c.Rating <= filter.MaxRating);
 
         // Sorting
-        bool desc = filter.SortOrder?.Equals("desc", StringComparison.OrdinalIgnoreCase) ?? false;
+        bool desc = filter.SortOrder == SortOrder.Desc;
         query = filter.SortBy?.ToLowerInvariant() switch
         {
             "name"     => desc ? query.OrderByDescending(c => c.Name)     : query.OrderBy(c => c.Name),
