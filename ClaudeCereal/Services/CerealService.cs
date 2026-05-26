@@ -6,11 +6,59 @@ namespace ClaudeCereal.Services;
 
 public class CerealService(AppDbContext db) : ICerealService
 {
-    public IQueryable<Cereal> GetQueryable() =>
-        db.Cereals.AsQueryable();
+    public async Task<IEnumerable<Cereal>> GetFilteredAsync(CerealFilter filter)
+    {
+        var query = db.Cereals.AsNoTracking().AsQueryable();
 
-    public async Task<IEnumerable<Cereal>> GetAllAsync() =>
-        await db.Cereals.ToListAsync();
+        if (filter.Manufacturer.HasValue)
+            query = query.Where(c => c.Mfr == filter.Manufacturer);
+        if (filter.Type.HasValue)
+            query = query.Where(c => c.Type == filter.Type);
+        if (filter.Name is not null)
+            query = query.Where(c => c.Name.Contains(filter.Name));
+        if (filter.MinCalories.HasValue)
+            query = query.Where(c => c.Calories >= filter.MinCalories);
+        if (filter.MaxCalories.HasValue)
+            query = query.Where(c => c.Calories <= filter.MaxCalories);
+        if (filter.MinProtein.HasValue)
+            query = query.Where(c => c.Protein >= filter.MinProtein);
+        if (filter.MaxProtein.HasValue)
+            query = query.Where(c => c.Protein <= filter.MaxProtein);
+        if (filter.MinFat.HasValue)
+            query = query.Where(c => c.Fat >= filter.MinFat);
+        if (filter.MaxFat.HasValue)
+            query = query.Where(c => c.Fat <= filter.MaxFat);
+        if (filter.MinSodium.HasValue)
+            query = query.Where(c => c.Sodium >= filter.MinSodium);
+        if (filter.MaxSodium.HasValue)
+            query = query.Where(c => c.Sodium <= filter.MaxSodium);
+        if (filter.MinFiber.HasValue)
+            query = query.Where(c => c.Fiber >= filter.MinFiber);
+        if (filter.MaxFiber.HasValue)
+            query = query.Where(c => c.Fiber <= filter.MaxFiber);
+        if (filter.MinCarbo.HasValue)
+            query = query.Where(c => c.Carbo >= filter.MinCarbo);
+        if (filter.MaxCarbo.HasValue)
+            query = query.Where(c => c.Carbo <= filter.MaxCarbo);
+        if (filter.MinSugars.HasValue)
+            query = query.Where(c => c.Sugars >= filter.MinSugars);
+        if (filter.MaxSugars.HasValue)
+            query = query.Where(c => c.Sugars <= filter.MaxSugars);
+        if (filter.MinPotass.HasValue)
+            query = query.Where(c => c.Potass >= filter.MinPotass);
+        if (filter.MaxPotass.HasValue)
+            query = query.Where(c => c.Potass <= filter.MaxPotass);
+        if (filter.MinVitamins.HasValue)
+            query = query.Where(c => c.Vitamins >= filter.MinVitamins);
+        if (filter.MaxVitamins.HasValue)
+            query = query.Where(c => c.Vitamins <= filter.MaxVitamins);
+        if (filter.MinRating.HasValue)
+            query = query.Where(c => c.Rating >= filter.MinRating);
+        if (filter.MaxRating.HasValue)
+            query = query.Where(c => c.Rating <= filter.MaxRating);
+
+        return await query.ToListAsync();
+    }
 
     public async Task<Cereal?> GetByIdAsync(int id) =>
         await db.Cereals.FindAsync(id);
