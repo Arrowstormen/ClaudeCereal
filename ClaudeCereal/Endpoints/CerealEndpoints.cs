@@ -22,7 +22,7 @@ public static class CerealEndpoints
         {
             var created = await service.CreateAsync(cereal);
             return Results.Created($"/cereals/{created.Id}", created);
-        });
+        }).RequireAuthorization();
 
         group.MapPut("/{id:int}", async (int id, Cereal input, ICerealService service) =>
             await service.UpdateAsync(id, input) is Cereal updated
@@ -32,7 +32,7 @@ public static class CerealEndpoints
         group.MapDelete("/{id:int}", async (int id, ICerealService service) =>
             await service.DeleteAsync(id)
                 ? Results.NoContent()
-                : Results.NotFound());
+                : Results.NotFound()).RequireAuthorization();
 
         group.MapGet("/{id:int}/image", async (int id, ICerealService service, ICerealImageService imageService) =>
         {

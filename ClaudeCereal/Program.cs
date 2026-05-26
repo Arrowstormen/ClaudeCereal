@@ -1,6 +1,8 @@
+using ClaudeCereal.Authentication;
 using ClaudeCereal.Data;
 using ClaudeCereal.Endpoints;
 using ClaudeCereal.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -17,11 +19,18 @@ var imagePath = Path.Combine(
     builder.Configuration["ImagePath"] ?? "Cereal Pictures");
 builder.Services.AddSingleton<ICerealImageService>(new CerealImageService(imagePath));
 
+builder.Services
+    .AddAuthentication("Basic")
+    .AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>("Basic", null);
+builder.Services.AddAuthorization();
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
