@@ -3,30 +3,45 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ClaudeCereal.Data;
 
-public static class CerealSeeder
+public class CerealSeeder(ILogger<CerealSeeder> logger)
 {
-    public static async Task SeedAsync(AppDbContext db, string csvPath)
+    public async Task SeedAsync(AppDbContext db, string csvPath)
     {
         await db.Database.MigrateAsync();
 
         if (await db.Cereals.AnyAsync())
             return;
 
+        if (!File.Exists(csvPath))
+        {
+            logger.LogError("Seed file not found at {Path}. Database will not be seeded.", csvPath);
+            return;
+        }
+
         var lines = await File.ReadAllLinesAsync(csvPath);
 
         // line 0 = header, line 1 = type annotations — skip both
         var cereals = lines.Skip(2)
             .Where(l => !string.IsNullOrWhiteSpace(l))
-            .Select(ParseLine)
+            .Select((line, index) => TryParseLine(line, index + 3))
+            .OfType<Cereal>()
             .ToList();
 
         db.Cereals.AddRange(cereals);
         await db.SaveChangesAsync();
+
+        logger.LogInformation("Seeded {Count} cereals from {Path}.", cereals.Count, csvPath);
     }
 
-    private static Cereal ParseLine(string line)
+    private Cereal? TryParseLine(string line, int lineNumber)
     {
         var f = line.Split(';');
+
+        if (f.Length < 16)
+        {
+            logger.LogWarning("CSV line {LineNumber} skipped: expected 16 fields, got {Count}.", lineNumber, f.Length);
+            return null;
+        }
 
         return new Cereal
         {

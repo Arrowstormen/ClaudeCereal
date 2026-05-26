@@ -6,11 +6,24 @@ namespace ClaudeCereal.Services;
 
 public class CerealService(AppDbContext db) : ICerealService
 {
-    public async Task<IEnumerable<Cereal>> GetAllAsync() =>
-        await db.Cereals.ToListAsync();
+    private const int MaxPageSize = 100;
+
+    public async Task<IEnumerable<Cereal>> GetAllAsync(int page = 1, int pageSize = 50)
+    {
+        pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+        page = Math.Max(page, 1);
+
+        return await db.Cereals
+            .AsNoTracking()
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+    }
 
     public async Task<Cereal?> GetByIdAsync(int id) =>
-        await db.Cereals.FindAsync(id);
+        await db.Cereals
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == id);
 
     public async Task<Cereal> CreateAsync(Cereal cereal)
     {
@@ -47,11 +60,10 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var cereal = await db.Cereals.FindAsync(id);
-        if (cereal is null) return false;
+        var deleted = await db.Cereals
+            .Where(c => c.Id == id)
+            .ExecuteDeleteAsync();
 
-        db.Cereals.Remove(cereal);
-        await db.SaveChangesAsync();
-        return true;
+        return deleted > 0;
     }
 }

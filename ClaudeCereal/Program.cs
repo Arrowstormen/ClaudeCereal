@@ -11,11 +11,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         ?? "Data Source=cereals.db"));
 
 builder.Services.AddScoped<ICerealService, CerealService>();
+builder.Services.AddScoped<CerealSeeder>();
+builder.Services.AddValidation();
+builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
 app.UseHttpsRedirection();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
@@ -26,11 +31,10 @@ if (app.Environment.IsDevelopment())
 var csvPath = builder.Configuration["CsvPath"]
     ?? Path.Combine(AppContext.BaseDirectory, "cereal.csv");
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await CerealSeeder.SeedAsync(db, csvPath);
-}
+using var scope = app.Services.CreateScope();
+var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+var seeder = scope.ServiceProvider.GetRequiredService<CerealSeeder>();
+await seeder.SeedAsync(db, csvPath);
 
 app.MapCerealEndpoints();
 
