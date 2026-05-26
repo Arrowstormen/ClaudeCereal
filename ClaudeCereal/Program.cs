@@ -1,7 +1,10 @@
 using ClaudeCereal.Data;
 using ClaudeCereal.Endpoints;
+using ClaudeCereal.Models;
 using ClaudeCereal.Services;
+using Microsoft.AspNetCore.OData;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OData.ModelBuilder;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +15,19 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<ICerealService, CerealService>();
 builder.Services.AddOpenApi();
+
+var odataBuilder = new ODataConventionModelBuilder();
+odataBuilder.EntitySet<Cereal>("Cereals");
+var edmModel = odataBuilder.GetEdmModel();
+
+builder.Services.AddControllers()
+    .AddOData(opt => opt
+        .AddRouteComponents("odata", edmModel)
+        .Select()
+        .Filter()
+        .OrderBy()
+        .SetMaxTop(100)
+        .Count());
 
 var app = builder.Build();
 
@@ -33,5 +49,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapCerealEndpoints();
+app.MapControllers();
 
 app.Run();

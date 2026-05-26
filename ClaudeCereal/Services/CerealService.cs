@@ -6,6 +6,9 @@ namespace ClaudeCereal.Services;
 
 public class CerealService(AppDbContext db) : ICerealService
 {
+    public IQueryable<Cereal> GetQueryable() =>
+        db.Cereals.AsQueryable();
+
     public async Task<IEnumerable<Cereal>> GetAllAsync() =>
         await db.Cereals.ToListAsync();
 

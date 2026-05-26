@@ -4,6 +4,7 @@ namespace ClaudeCereal.Services;
 
 public interface ICerealService
 {
+    IQueryable<Cereal> GetQueryable();
     Task<IEnumerable<Cereal>> GetAllAsync();
     Task<Cereal?> GetByIdAsync(int id);
     Task<Cereal> CreateAsync(Cereal cereal);
