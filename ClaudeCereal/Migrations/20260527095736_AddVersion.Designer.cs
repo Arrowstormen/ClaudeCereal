@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ClaudeCereal.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260527095032_AddRowVersion")]
-    partial class AddRowVersion
+    [Migration("20260527095736_AddVersion")]
+    partial class AddVersion
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -56,10 +56,6 @@ namespace ClaudeCereal.Migrations
                     b.Property<double?>("Rating")
                         .HasColumnType("REAL");
 
-                    b.Property<uint>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("INTEGER");
-
                     b.Property<int?>("Shelf")
                         .HasColumnType("INTEGER");
 
@@ -71,6 +67,10 @@ namespace ClaudeCereal.Migrations
 
                     b.Property<string>("Type")
                         .HasColumnType("TEXT");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("Vitamins")
                         .HasColumnType("INTEGER");

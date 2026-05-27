@@ -53,10 +53,6 @@ namespace ClaudeCereal.Migrations
                     b.Property<double?>("Rating")
                         .HasColumnType("REAL");
 
-                    b.Property<uint>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("INTEGER");
-
                     b.Property<int?>("Shelf")
                         .HasColumnType("INTEGER");
 
@@ -68,6 +64,10 @@ namespace ClaudeCereal.Migrations
 
                     b.Property<string>("Type")
                         .HasColumnType("TEXT");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("Vitamins")
                         .HasColumnType("INTEGER");

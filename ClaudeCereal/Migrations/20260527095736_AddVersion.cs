@@ -5,13 +5,13 @@
 namespace ClaudeCereal.Migrations
 {
     /// <inheritdoc />
-    public partial class AddRowVersion : Migration
+    public partial class AddVersion : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<uint>(
-                name: "RowVersion",
+                name: "Version",
                 table: "Cereals",
                 type: "INTEGER",
                 nullable: false,
@@ -22,7 +22,7 @@ namespace ClaudeCereal.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "RowVersion",
+                name: "Version",
                 table: "Cereals");
         }
     }
