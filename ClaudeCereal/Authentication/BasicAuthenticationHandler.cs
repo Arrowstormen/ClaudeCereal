@@ -11,7 +11,7 @@ public class BasicAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder,
-    IConfiguration configuration)
+    IOptions<BasicAuthSettings> settings)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -41,21 +41,23 @@ public class BasicAuthenticationHandler(
         var username = credentials[..separatorIndex];
         var password = credentials[(separatorIndex + 1)..];
 
-        var expectedUsername = configuration["BasicAuth:Username"];
-        var expectedPassword = configuration["BasicAuth:Password"];
+        var user = settings.Value.Users
+            .FirstOrDefault(u => u.Username == username && u.Password == password);
 
-        if (username != expectedUsername || password != expectedPassword)
+        if (user is null)
             return Task.FromResult(AuthenticateResult.Fail("Invalid username or password."));
 
-        var principal = new ClaimsPrincipal(
-            new ClaimsIdentity([new Claim(ClaimTypes.Name, username)], Scheme.Name));
+        var claims = new List<Claim> { new(ClaimTypes.Name, username) };
+        claims.AddRange(user.Roles.Select(role => new Claim(ClaimTypes.Role, role)));
+
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name));
 
         return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name)));
     }
 
     protected override Task HandleChallengeAsync(AuthenticationProperties properties)
     {
-        Response.Headers.WWWAuthenticate = $"Basic realm=\"ClaudeCereal\"";
+        Response.Headers.WWWAuthenticate = "Basic realm=\"ClaudeCereal\"";
         return base.HandleChallengeAsync(properties);
     }
 }

@@ -19,10 +19,18 @@ var imagePath = Path.Combine(
     builder.Configuration["ImagePath"] ?? "Cereal Pictures");
 builder.Services.AddSingleton<ICerealImageService>(new CerealImageService(imagePath));
 
+builder.Services.Configure<BasicAuthSettings>(builder.Configuration.GetSection("BasicAuth"));
+
 builder.Services
     .AddAuthentication("Basic")
     .AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>("Basic", null);
-builder.Services.AddAuthorization();
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(Policies.ReaderOrAbove, p => p.RequireRole(Roles.Reader, Roles.Editor, Roles.Admin));
+    options.AddPolicy(Policies.EditorOrAbove, p => p.RequireRole(Roles.Editor, Roles.Admin));
+    options.AddPolicy(Policies.AdminOnly,     p => p.RequireRole(Roles.Admin));
+});
 
 builder.Services.AddOpenApi();
 
