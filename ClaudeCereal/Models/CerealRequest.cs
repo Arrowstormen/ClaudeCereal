@@ -1,6 +1,6 @@
 namespace ClaudeCereal.Models;
 
-public class CerealDto
+public class CerealRequest
 {
     public required string Name { get; set; }
 
