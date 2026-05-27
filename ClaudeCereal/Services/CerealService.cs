@@ -12,37 +12,43 @@ public class CerealService(AppDbContext db) : ICerealService
     public async Task<Cereal?> GetByIdAsync(int id) =>
         await db.Cereals.FindAsync(id);
 
-    public async Task<Cereal> CreateAsync(Cereal cereal)
+    public async Task<Cereal> CreateAsync(CerealRequest dto)
     {
+        var cereal = new Cereal();
+        MapToEntity(dto, cereal);
         db.Cereals.Add(cereal);
         await db.SaveChangesAsync();
         return cereal;
     }
 
-    public async Task<Cereal?> UpdateAsync(int id, Cereal input)
+    public async Task<Cereal?> UpdateAsync(int id, CerealRequest dto)
     {
         var cereal = await db.Cereals.FindAsync(id);
         if (cereal is null) return null;
 
-        cereal.Name     = input.Name;
-        cereal.Mfr      = input.Mfr;
-        cereal.Type     = input.Type;
-        cereal.Calories = input.Calories;
-        cereal.Protein  = input.Protein;
-        cereal.Fat      = input.Fat;
-        cereal.Sodium   = input.Sodium;
-        cereal.Fiber    = input.Fiber;
-        cereal.Carbo    = input.Carbo;
-        cereal.Sugars   = input.Sugars;
-        cereal.Potass   = input.Potass;
-        cereal.Vitamins = input.Vitamins;
-        cereal.Shelf    = input.Shelf;
-        cereal.Weight   = input.Weight;
-        cereal.Cups     = input.Cups;
-        cereal.Rating   = input.Rating;
-
+        MapToEntity(dto, cereal);
         await db.SaveChangesAsync();
         return cereal;
+    }
+
+    private static void MapToEntity(CerealRequest dto, Cereal target)
+    {
+        target.Name     = dto.Name;
+        target.Mfr      = dto.Mfr;
+        target.Type     = dto.Type;
+        target.Calories = dto.Calories;
+        target.Protein  = dto.Protein;
+        target.Fat      = dto.Fat;
+        target.Sodium   = dto.Sodium;
+        target.Fiber    = dto.Fiber;
+        target.Carbo    = dto.Carbo;
+        target.Sugars   = dto.Sugars;
+        target.Potass   = dto.Potass;
+        target.Vitamins = dto.Vitamins;
+        target.Shelf    = dto.Shelf;
+        target.Weight   = dto.Weight;
+        target.Cups     = dto.Cups;
+        target.Rating   = dto.Rating;
     }
 
     public async Task<bool> DeleteAsync(int id)
