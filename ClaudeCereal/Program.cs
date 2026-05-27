@@ -3,6 +3,7 @@ using ClaudeCereal.Data;
 using ClaudeCereal.Endpoints;
 using ClaudeCereal.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -25,10 +26,16 @@ builder.Services
     .AddAuthentication("Basic")
     .AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>("Basic", null);
 
+builder.Services.AddScoped<IClaimsTransformation, RoleHierarchyTransformation>();
+
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy(Policies.ReaderOrAbove, p => p.RequireRole(Roles.Reader, Roles.Editor, Roles.Admin));
-    options.AddPolicy(Policies.EditorOrAbove, p => p.RequireRole(Roles.Editor, Roles.Admin));
+    // Any authenticated user has at least Reader (via the hierarchy transformation)
+    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+
+    options.AddPolicy(Policies.ReaderOrAbove, p => p.RequireAuthenticatedUser());
+    // Editor and Admin both carry the Editor claim after transformation
+    options.AddPolicy(Policies.EditorOrAbove, p => p.RequireRole(Roles.Editor));
     options.AddPolicy(Policies.AdminOnly,     p => p.RequireRole(Roles.Admin));
 });
 

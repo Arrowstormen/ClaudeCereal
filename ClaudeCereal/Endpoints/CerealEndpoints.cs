@@ -9,17 +9,16 @@ public static class CerealEndpoints
 {
     public static void MapCerealEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/cereals");
+        var group = app.MapGroup("/cereals")
+            .RequireAuthorization(Policies.ReaderOrAbove);  // floor for the entire group
 
         group.MapGet("/", async (ICerealService service) =>
-            Results.Ok(await service.GetAllAsync()))
-            .RequireAuthorization(Policies.ReaderOrAbove);
+            Results.Ok(await service.GetAllAsync()));
 
         group.MapGet("/{id:int}", async (int id, ICerealService service) =>
             await service.GetByIdAsync(id) is Cereal cereal
                 ? Results.Ok(cereal)
-                : Results.NotFound())
-            .RequireAuthorization(Policies.ReaderOrAbove);
+                : Results.NotFound());
 
         group.MapPost("/", async (CerealRequest request, ICerealService service) =>
         {
@@ -49,6 +48,6 @@ public static class CerealEndpoints
 
             new FileExtensionContentTypeProvider().TryGetContentType(imagePath, out var contentType);
             return Results.File(imagePath, contentType ?? "application/octet-stream");
-        }).RequireAuthorization(Policies.ReaderOrAbove);
+        });
     }
 }
