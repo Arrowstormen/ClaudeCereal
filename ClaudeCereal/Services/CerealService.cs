@@ -14,7 +14,8 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<Cereal> CreateAsync(CerealDto dto)
     {
-        var cereal = MapToEntity(dto);
+        var cereal = new Cereal();
+        MapToEntity(dto, cereal);
         db.Cereals.Add(cereal);
         await db.SaveChangesAsync();
         return cereal;
@@ -30,9 +31,8 @@ public class CerealService(AppDbContext db) : ICerealService
         return cereal;
     }
 
-    private static Cereal MapToEntity(CerealDto dto, Cereal? target = null)
+    private static void MapToEntity(CerealDto dto, Cereal target)
     {
-        target ??= new Cereal();
         target.Name     = dto.Name;
         target.Mfr      = dto.Mfr;
         target.Type     = dto.Type;
@@ -49,7 +49,6 @@ public class CerealService(AppDbContext db) : ICerealService
         target.Weight   = dto.Weight;
         target.Cups     = dto.Cups;
         target.Rating   = dto.Rating;
-        return target;
     }
 
     public async Task<bool> DeleteAsync(int id)
