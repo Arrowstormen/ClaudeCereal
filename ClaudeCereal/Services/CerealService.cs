@@ -12,7 +12,7 @@ public class CerealService(AppDbContext db) : ICerealService
     public async Task<Cereal?> GetByIdAsync(int id) =>
         await db.Cereals.FindAsync(id);
 
-    public async Task<Cereal> CreateAsync(CerealDto dto)
+    public async Task<Cereal> CreateAsync(CerealRequest dto)
     {
         var cereal = new Cereal();
         MapToEntity(dto, cereal);
@@ -21,7 +21,7 @@ public class CerealService(AppDbContext db) : ICerealService
         return cereal;
     }
 
-    public async Task<Cereal?> UpdateAsync(int id, CerealDto dto)
+    public async Task<Cereal?> UpdateAsync(int id, CerealRequest dto)
     {
         var cereal = await db.Cereals.FindAsync(id);
         if (cereal is null) return null;
@@ -31,7 +31,7 @@ public class CerealService(AppDbContext db) : ICerealService
         return cereal;
     }
 
-    private static void MapToEntity(CerealDto dto, Cereal target)
+    private static void MapToEntity(CerealRequest dto, Cereal target)
     {
         target.Name     = dto.Name;
         target.Mfr      = dto.Mfr;
