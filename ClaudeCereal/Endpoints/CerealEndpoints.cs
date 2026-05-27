@@ -19,17 +19,17 @@ public static class CerealEndpoints
                 ? Results.Ok(cereal)
                 : Results.NotFound());
 
-        group.MapPost("/", async (CerealRequest dto, ICerealService service) =>
+        group.MapPost("/", async (CerealRequest request, ICerealService service) =>
         {
-            var created = await service.CreateAsync(dto);
+            var created = await service.CreateAsync(request);
             return Results.Created($"/cereals/{created.Id}", created);
         }).RequireAuthorization();
 
-        group.MapPut("/{id:int}", async (int id, CerealRequest dto, ICerealService service) =>
+        group.MapPut("/{id:int}", async (int id, CerealRequest request, ICerealService service) =>
         {
             try
             {
-                return await service.UpdateAsync(id, dto) is Cereal updated
+                return await service.UpdateAsync(id, request) is Cereal updated
                     ? Results.Ok(updated)
                     : Results.NotFound();
             }

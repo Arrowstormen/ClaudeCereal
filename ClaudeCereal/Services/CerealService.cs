@@ -12,23 +12,23 @@ public class CerealService(AppDbContext db) : ICerealService
     public async Task<Cereal?> GetByIdAsync(int id) =>
         await db.Cereals.FindAsync(id);
 
-    public async Task<Cereal> CreateAsync(CerealRequest dto)
+    public async Task<Cereal> CreateAsync(CerealRequest request)
     {
         var cereal = new Cereal();
-        MapToEntity(dto, cereal);
+        MapToEntity(request, cereal);
         db.Cereals.Add(cereal);
         await db.SaveChangesAsync();
         return cereal;
     }
 
-    public async Task<Cereal?> UpdateAsync(int id, CerealRequest dto)
+    public async Task<Cereal?> UpdateAsync(int id, CerealRequest request)
     {
         var cereal = await db.Cereals.FindAsync(id);
         if (cereal is null) return null;
 
         // Tell EF Core to check the client's version in the SQL WHERE clause
-        db.Entry(cereal).Property(c => c.Version).OriginalValue = dto.Version;
-        MapToEntity(dto, cereal);
+        db.Entry(cereal).Property(c => c.Version).OriginalValue = request.Version;
+        MapToEntity(request, cereal);
         cereal.Version++;
 
         // Throws DbUpdateConcurrencyException if another user already changed the row
@@ -36,24 +36,24 @@ public class CerealService(AppDbContext db) : ICerealService
         return cereal;
     }
 
-    private static void MapToEntity(CerealRequest dto, Cereal target)
+    private static void MapToEntity(CerealRequest request, Cereal target)
     {
-        target.Name     = dto.Name;
-        target.Mfr      = dto.Mfr;
-        target.Type     = dto.Type;
-        target.Calories = dto.Calories;
-        target.Protein  = dto.Protein;
-        target.Fat      = dto.Fat;
-        target.Sodium   = dto.Sodium;
-        target.Fiber    = dto.Fiber;
-        target.Carbo    = dto.Carbo;
-        target.Sugars   = dto.Sugars;
-        target.Potass   = dto.Potass;
-        target.Vitamins = dto.Vitamins;
-        target.Shelf    = dto.Shelf;
-        target.Weight   = dto.Weight;
-        target.Cups     = dto.Cups;
-        target.Rating   = dto.Rating;
+        target.Name     = request.Name;
+        target.Mfr      = request.Mfr;
+        target.Type     = request.Type;
+        target.Calories = request.Calories;
+        target.Protein  = request.Protein;
+        target.Fat      = request.Fat;
+        target.Sodium   = request.Sodium;
+        target.Fiber    = request.Fiber;
+        target.Carbo    = request.Carbo;
+        target.Sugars   = request.Sugars;
+        target.Potass   = request.Potass;
+        target.Vitamins = request.Vitamins;
+        target.Shelf    = request.Shelf;
+        target.Weight   = request.Weight;
+        target.Cups     = request.Cups;
+        target.Rating   = request.Rating;
     }
 
     public async Task<bool> DeleteAsync(int id)
