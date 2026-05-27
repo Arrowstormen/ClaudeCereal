@@ -49,8 +49,10 @@ app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    // AllowAnonymous so the FallbackPolicy doesn't force browser-level Basic Auth
+    // on the spec and UI endpoints — credentials are entered inside Scalar instead.
+    app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous();
 }
 
 var csvPath = builder.Configuration["CsvPath"]
