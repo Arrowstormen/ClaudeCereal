@@ -1,16 +1,21 @@
+using System.Text.Json.Serialization;
 using ClaudeCereal.Data;
 using ClaudeCereal.Endpoints;
 using ClaudeCereal.Services;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
-var builder = WebApplication.CreateBuilder(args);
+ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
         ?? "Data Source=cereals.db"));
 
 builder.Services.AddScoped<ICerealService, CerealService>();
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
