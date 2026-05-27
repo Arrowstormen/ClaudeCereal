@@ -1,11 +1,8 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace ClaudeCereal.Models;
 
 public class CerealDto
 {
-    [Required]
-    public string Name { get; set; } = null!;
+    public required string Name { get; set; }
 
     public Manufacturer? Mfr { get; set; }
     public CerealType? Type { get; set; }
