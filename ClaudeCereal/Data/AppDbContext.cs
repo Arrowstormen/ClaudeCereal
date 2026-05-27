@@ -13,6 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             entity.Property(c => c.Mfr).HasConversion<string>();
             entity.Property(c => c.Type).HasConversion<string>();
+            entity.Property(c => c.RowVersion).IsConcurrencyToken();
         });
     }
 }
