@@ -12,7 +12,7 @@ public class CerealService(AppDbContext db) : ICerealService
 
         // Name
         if (filter.Name is not null)
-            query = query.Where(c => c.Name == filter.Name);
+            query = query.Where(c => EF.Functions.Like(c.Name, filter.Name));
         if (filter.NameContains is not null)
             query = query.Where(c => c.Name.Contains(filter.NameContains));
         // Categorical
@@ -74,26 +74,29 @@ public class CerealService(AppDbContext db) : ICerealService
         if (filter.MaxRating.HasValue)
             query = query.Where(c => c.Rating <= filter.MaxRating);
 
-        // Sorting
-        bool desc = filter.SortOrder == SortOrder.Desc;
-        query = filter.SortBy?.ToLowerInvariant() switch
+        // Sorting — SortOrder is only applied when SortBy is also set
+        if (filter.SortBy is not null)
         {
-            "name"     => desc ? query.OrderByDescending(c => c.Name)     : query.OrderBy(c => c.Name),
-            "calories" => desc ? query.OrderByDescending(c => c.Calories) : query.OrderBy(c => c.Calories),
-            "protein"  => desc ? query.OrderByDescending(c => c.Protein)  : query.OrderBy(c => c.Protein),
-            "fat"      => desc ? query.OrderByDescending(c => c.Fat)      : query.OrderBy(c => c.Fat),
-            "sodium"   => desc ? query.OrderByDescending(c => c.Sodium)   : query.OrderBy(c => c.Sodium),
-            "fiber"    => desc ? query.OrderByDescending(c => c.Fiber)    : query.OrderBy(c => c.Fiber),
-            "carbo"    => desc ? query.OrderByDescending(c => c.Carbo)    : query.OrderBy(c => c.Carbo),
-            "sugars"   => desc ? query.OrderByDescending(c => c.Sugars)   : query.OrderBy(c => c.Sugars),
-            "potass"   => desc ? query.OrderByDescending(c => c.Potass)   : query.OrderBy(c => c.Potass),
-            "vitamins" => desc ? query.OrderByDescending(c => c.Vitamins) : query.OrderBy(c => c.Vitamins),
-            "shelf"    => desc ? query.OrderByDescending(c => c.Shelf)    : query.OrderBy(c => c.Shelf),
-            "weight"   => desc ? query.OrderByDescending(c => c.Weight)   : query.OrderBy(c => c.Weight),
-            "cups"     => desc ? query.OrderByDescending(c => c.Cups)     : query.OrderBy(c => c.Cups),
-            "rating"   => desc ? query.OrderByDescending(c => c.Rating)   : query.OrderBy(c => c.Rating),
-            _          => query.OrderBy(c => c.Id)
-        };
+            bool desc = filter.SortOrder == SortOrder.Desc;
+            query = filter.SortBy switch
+            {
+                SortBy.Name     => desc ? query.OrderByDescending(c => c.Name)     : query.OrderBy(c => c.Name),
+                SortBy.Calories => desc ? query.OrderByDescending(c => c.Calories) : query.OrderBy(c => c.Calories),
+                SortBy.Protein  => desc ? query.OrderByDescending(c => c.Protein)  : query.OrderBy(c => c.Protein),
+                SortBy.Fat      => desc ? query.OrderByDescending(c => c.Fat)      : query.OrderBy(c => c.Fat),
+                SortBy.Sodium   => desc ? query.OrderByDescending(c => c.Sodium)   : query.OrderBy(c => c.Sodium),
+                SortBy.Fiber    => desc ? query.OrderByDescending(c => c.Fiber)    : query.OrderBy(c => c.Fiber),
+                SortBy.Carbo    => desc ? query.OrderByDescending(c => c.Carbo)    : query.OrderBy(c => c.Carbo),
+                SortBy.Sugars   => desc ? query.OrderByDescending(c => c.Sugars)   : query.OrderBy(c => c.Sugars),
+                SortBy.Potass   => desc ? query.OrderByDescending(c => c.Potass)   : query.OrderBy(c => c.Potass),
+                SortBy.Vitamins => desc ? query.OrderByDescending(c => c.Vitamins) : query.OrderBy(c => c.Vitamins),
+                SortBy.Shelf    => desc ? query.OrderByDescending(c => c.Shelf)    : query.OrderBy(c => c.Shelf),
+                SortBy.Weight   => desc ? query.OrderByDescending(c => c.Weight)   : query.OrderBy(c => c.Weight),
+                SortBy.Cups     => desc ? query.OrderByDescending(c => c.Cups)     : query.OrderBy(c => c.Cups),
+                SortBy.Rating   => desc ? query.OrderByDescending(c => c.Rating)   : query.OrderBy(c => c.Rating),
+                _               => query.OrderBy(c => c.Id)
+            };
+        }
 
         return await query.ToListAsync();
     }

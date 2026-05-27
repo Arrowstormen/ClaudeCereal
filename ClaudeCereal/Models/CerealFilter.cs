@@ -36,6 +36,6 @@ public record CerealFilter(
     double? MinRating,
     double? MaxRating,
     // Sorting
-    string? SortBy,
+    SortBy? SortBy,
     SortOrder? SortOrder
 );
