@@ -1,4 +1,5 @@
 using ClaudeCereal.Data;
+using ClaudeCereal.Exceptions;
 using ClaudeCereal.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,11 +9,10 @@ public class CerealService(AppDbContext db) : ICerealService
 {
     public async Task<PagedResult<Cereal>> GetFilteredAsync(CerealFilter filter)
     {
-        var query = db.Cereals.AsNoTracking().AsQueryable();
-
-        // Soft delete — excluded by default, included when IncludeDeleted = true
-        if (filter.IncludeDeleted != true)
-            query = query.Where(c => c.DeletedAt == null);
+        // When IncludeDeleted is requested, bypass the global query filter so deleted rows appear.
+        var query = filter.IncludeDeleted == true
+            ? db.Cereals.AsNoTracking().IgnoreQueryFilters().AsQueryable()
+            : db.Cereals.AsNoTracking().AsQueryable();
 
         // Name
         if (!string.IsNullOrEmpty(filter.NameContains))
@@ -116,11 +116,27 @@ public class CerealService(AppDbContext db) : ICerealService
             (int)Math.Ceiling(totalCount / (double)pageSize));
     }
 
+    // Global query filter handles the DeletedAt == null predicate automatically.
     public async Task<Cereal?> GetByIdAsync(int id) =>
-        await db.Cereals.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
+        await db.Cereals.FirstOrDefaultAsync(c => c.Id == id);
+
+    public async Task<bool> IsDeletedAsync(int id) =>
+        await db.Cereals
+            .IgnoreQueryFilters()
+            .AnyAsync(c => c.Id == id && c.DeletedAt != null);
 
     public async Task<Cereal> CreateAsync(CerealRequest request)
     {
+        // If a soft-deleted row with the same name exists, reject the create so that an
+        // editor cannot indirectly restore an admin-only resource. The caller should surface
+        // this as 409 Conflict and direct the client to request an admin restore.
+        var existing = await db.Cereals
+            .IgnoreQueryFilters()
+            .AnyAsync(c => c.Name == request.Name && c.DeletedAt != null);
+
+        if (existing)
+            throw new SoftDeletedConflictException(request.Name);
+
         var cereal = new Cereal();
         MapToEntity(request, cereal);
         db.Cereals.Add(cereal);
@@ -130,7 +146,8 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<Cereal?> UpdateAsync(int id, CerealRequest request)
     {
-        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
+        // Global query filter ensures this only finds active (non-deleted) rows.
+        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id);
         if (cereal is null) return null;
 
         // Tell EF Core to check the client's version in the SQL WHERE clause
@@ -165,7 +182,8 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
+        // Global query filter ensures only active rows are found.
+        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id);
         if (cereal is null) return false;
 
         cereal.DeletedAt = DateTime.UtcNow;
@@ -175,6 +193,7 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<Cereal?> RestoreAsync(int id)
     {
+        // FindAsync bypasses global query filters, so this correctly finds deleted rows.
         var cereal = await db.Cereals.FindAsync(id);
         if (cereal is null) return null;
 
