@@ -2,7 +2,6 @@ namespace ClaudeCereal.Models;
 
 public record CerealFilter(
     // Name search
-    string? Name,
     string? NameContains,
     // Categorical
     Manufacturer? Manufacturer,

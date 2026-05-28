@@ -11,8 +11,6 @@ public class CerealService(AppDbContext db) : ICerealService
         var query = db.Cereals.AsNoTracking().AsQueryable();
 
         // Name
-        if (filter.Name is not null)
-            query = query.Where(c => EF.Functions.Like(c.Name, filter.Name));
         if (filter.NameContains is not null)
             query = query.Where(c => c.Name.Contains(filter.NameContains));
         // Categorical
