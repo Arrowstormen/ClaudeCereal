@@ -48,7 +48,7 @@ internal static class CerealImportParser
             DetectDelimiter      = true,  // handles comma and semicolon automatically
             HeaderValidated      = null,  // don't throw on unrecognised columns
             MissingFieldFound    = null,  // don't throw on short rows
-            PrepareHeaderForMatch = args => args.Header.ToLowerInvariant()
+            PrepareHeaderForMatch = args => args.Header.Trim().ToLowerInvariant()
         });
 
         // Case-insensitive enum parsing for Manufacturer and CerealType
