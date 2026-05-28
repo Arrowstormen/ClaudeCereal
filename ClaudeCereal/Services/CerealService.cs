@@ -1,8 +1,5 @@
-using System.Globalization;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using ClaudeCereal.Data;
+using ClaudeCereal.Import;
 using ClaudeCereal.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -175,9 +172,7 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<ImportResult> ImportAsync(Stream content, ImportFormat format)
     {
-        var parsed = format == ImportFormat.Json
-            ? await ParseJsonAsync(content)
-            : ParseCsv(content);
+        var parsed = await CerealImportParser.ParseAsync(content, format);
 
         if (parsed.Count == 0)
             return new ImportResult(0, 0, []);
@@ -246,150 +241,6 @@ public class CerealService(AppDbContext db) : ICerealService
         return new ImportResult(inserted, updated, skipped);
     }
 
-    // ── Parsing helpers ─────────────────────────────────────────────────────────
-
-    private static readonly JsonSerializerOptions JsonImportOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
-
-    private static async Task<List<(CerealImportRow? Row, string? Error)>> ParseJsonAsync(Stream content)
-    {
-        List<CerealImportRow?>? rows;
-        try
-        {
-            rows = await JsonSerializer.DeserializeAsync<List<CerealImportRow?>>(content, JsonImportOptions);
-        }
-        catch (JsonException ex)
-        {
-            throw new InvalidDataException($"Invalid JSON: {ex.Message}", ex);
-        }
-
-        return rows?.Select(r => (r, (string?)null)).ToList() ?? [];
-    }
-
-    private static List<(CerealImportRow? Row, string? Error)> ParseCsv(Stream content)
-    {
-        using var reader = new StreamReader(content, leaveOpen: true);
-        var lines = new List<string>();
-        string? line;
-        while ((line = reader.ReadLine()) is not null)
-            if (!string.IsNullOrWhiteSpace(line))
-                lines.Add(line);
-
-        if (lines.Count == 0) return [];
-
-        // Auto-detect delimiter: whichever produces more columns from the header row wins
-        var commaFields     = SplitCsvLine(lines[0], ',');
-        var semicolonFields = SplitCsvLine(lines[0], ';');
-        char delim          = commaFields.Length >= semicolonFields.Length ? ',' : ';';
-        var headerFields    = delim == ',' ? commaFields : semicolonFields;
-
-        // Build header → column-index map (case-insensitive, first occurrence wins)
-        var headers = headerFields
-            .Select((h, i) => (Name: h.Trim().ToLowerInvariant(), Index: i))
-            .Where(x => !string.IsNullOrEmpty(x.Name))
-            .GroupBy(x => x.Name)
-            .ToDictionary(g => g.Key, g => g.First().Index);
-
-        if (!headers.ContainsKey("name"))
-            throw new InvalidDataException("CSV is missing a required 'name' column.");
-
-        var result = new List<(CerealImportRow?, string?)>();
-
-        for (int i = 1; i < lines.Count; i++)
-        {
-            var fields = SplitCsvLine(lines[i], delim);
-
-            // Local helper: get a trimmed field value by header name
-            string Get(string header) =>
-                headers.TryGetValue(header, out int idx) && idx < fields.Length
-                    ? fields[idx].Trim()
-                    : string.Empty;
-
-            var row = new CerealImportRow
-            {
-                Name     = NullIfEmpty(Get("name")),
-                Mfr      = ImportEnum<Manufacturer>(Get("mfr")),
-                Type     = ImportEnum<CerealType>(Get("type")),
-                Calories = ImportInt(Get("calories")),
-                Protein  = ImportInt(Get("protein")),
-                Fat      = ImportInt(Get("fat")),
-                Sodium   = ImportInt(Get("sodium")),
-                Fiber    = ImportDouble(Get("fiber")),
-                Carbo    = ImportDouble(Get("carbo")),
-                Sugars   = ImportInt(Get("sugars")),
-                Potass   = ImportInt(Get("potass")),
-                Vitamins = ImportInt(Get("vitamins")),
-                Shelf    = ImportInt(Get("shelf")),
-                Weight   = ImportDouble(Get("weight")),
-                Cups     = ImportDouble(Get("cups")),
-                Rating   = ImportDouble(Get("rating")),
-            };
-
-            result.Add((row, null));
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Splits a single CSV line respecting RFC 4180 quoting rules:
-    /// fields may be wrapped in double-quotes, and a literal double-quote
-    /// inside a quoted field is represented as two consecutive double-quotes ("").
-    /// </summary>
-    private static string[] SplitCsvLine(string line, char delim)
-    {
-        var fields = new List<string>();
-        var sb = new StringBuilder();
-        bool inQuotes = false;
-
-        for (int i = 0; i < line.Length; i++)
-        {
-            char c = line[i];
-
-            if (inQuotes)
-            {
-                if (c == '"')
-                {
-                    if (i + 1 < line.Length && line[i + 1] == '"')
-                    {
-                        sb.Append('"'); // escaped quote inside a quoted field
-                        i++;            // skip the second quote
-                    }
-                    else
-                    {
-                        inQuotes = false; // closing quote
-                    }
-                }
-                else
-                {
-                    sb.Append(c);
-                }
-            }
-            else
-            {
-                if (c == '"')
-                {
-                    inQuotes = true;
-                }
-                else if (c == delim)
-                {
-                    fields.Add(sb.ToString());
-                    sb.Clear();
-                }
-                else
-                {
-                    sb.Append(c);
-                }
-            }
-        }
-
-        fields.Add(sb.ToString()); // last field (no trailing delimiter)
-        return [.. fields];
-    }
-
     private static void ApplyImportRow(CerealImportRow row, Cereal target)
     {
         target.Name     = row.Name!;
@@ -410,15 +261,4 @@ public class CerealService(AppDbContext db) : ICerealService
         target.Rating   = row.Rating;
     }
 
-    private static string? NullIfEmpty(string s) =>
-        string.IsNullOrWhiteSpace(s) ? null : s;
-
-    private static T? ImportEnum<T>(string s) where T : struct, Enum =>
-        Enum.TryParse<T>(s, ignoreCase: true, out var result) ? result : null;
-
-    private static int? ImportInt(string s) =>
-        int.TryParse(s, out var v) ? v : null;
-
-    private static double? ImportDouble(string s) =>
-        double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : null;
 }
