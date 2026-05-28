@@ -53,6 +53,12 @@ public static class CerealEndpoints
                 : Results.NotFound())
             .RequireAuthorization(Policies.AdminOnly);
 
+        group.MapPost("/{id:int}/restore", async (int id, ICerealService service) =>
+            await service.RestoreAsync(id) is Cereal cereal
+                ? Results.Ok(cereal)
+                : Results.NotFound())
+            .RequireAuthorization(Policies.AdminOnly);
+
         group.MapGet("/{id:int}/image", async (int id, ICerealService service, ICerealImageService imageService) =>
         {
             var cereal = await service.GetByIdAsync(id);

@@ -10,6 +10,10 @@ public class CerealService(AppDbContext db) : ICerealService
     {
         var query = db.Cereals.AsNoTracking().AsQueryable();
 
+        // Soft delete — excluded by default, included when IncludeDeleted = true
+        if (filter.IncludeDeleted != true)
+            query = query.Where(c => c.DeletedAt == null);
+
         // Name
         if (!string.IsNullOrEmpty(filter.NameContains))
             query = query.Where(c => c.Name.Contains(filter.NameContains));
@@ -113,7 +117,7 @@ public class CerealService(AppDbContext db) : ICerealService
     }
 
     public async Task<Cereal?> GetByIdAsync(int id) =>
-        await db.Cereals.FindAsync(id);
+        await db.Cereals.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
 
     public async Task<Cereal> CreateAsync(CerealRequest request)
     {
@@ -126,7 +130,7 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<Cereal?> UpdateAsync(int id, CerealRequest request)
     {
-        var cereal = await db.Cereals.FindAsync(id);
+        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
         if (cereal is null) return null;
 
         // Tell EF Core to check the client's version in the SQL WHERE clause
@@ -161,11 +165,21 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var cereal = await db.Cereals.FindAsync(id);
+        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
         if (cereal is null) return false;
 
-        db.Cereals.Remove(cereal);
+        cereal.DeletedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<Cereal?> RestoreAsync(int id)
+    {
+        var cereal = await db.Cereals.FindAsync(id);
+        if (cereal is null) return null;
+
+        cereal.DeletedAt = null;
+        await db.SaveChangesAsync();
+        return cereal;
     }
 }
