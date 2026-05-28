@@ -6,7 +6,7 @@ namespace ClaudeCereal.Services;
 
 public class CerealService(AppDbContext db) : ICerealService
 {
-    public async Task<IEnumerable<Cereal>> GetFilteredAsync(CerealFilter filter)
+    public async Task<IReadOnlyList<Cereal>> GetFilteredAsync(CerealFilter filter)
     {
         var query = db.Cereals.AsNoTracking().AsQueryable();
 
