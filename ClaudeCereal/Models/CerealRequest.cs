@@ -2,6 +2,7 @@ namespace ClaudeCereal.Models;
 
 public class CerealRequest
 {
+    public uint Version { get; set; }
     public required string Name { get; set; }
 
     public Manufacturer? Mfr { get; set; }

@@ -1,6 +1,7 @@
 using ClaudeCereal.Models;
 using ClaudeCereal.Services;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClaudeCereal.Endpoints;
 
@@ -31,9 +32,18 @@ public static class CerealEndpoints
         }).RequireAuthorization();
 
         group.MapPut("/{id:int}", async (int id, CerealRequest request, ICerealService service) =>
-            await service.UpdateAsync(id, request) is Cereal updated
-                ? Results.Ok(updated)
-                : Results.NotFound());
+        {
+            try
+            {
+                return await service.UpdateAsync(id, request) is Cereal updated
+                    ? Results.Ok(updated)
+                    : Results.NotFound();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Results.Conflict();
+            }
+        });
 
         group.MapDelete("/{id:int}", async (int id, ICerealService service) =>
             await service.DeleteAsync(id)

@@ -129,7 +129,12 @@ public class CerealService(AppDbContext db) : ICerealService
         var cereal = await db.Cereals.FindAsync(id);
         if (cereal is null) return null;
 
+        // Tell EF Core to check the client's version in the SQL WHERE clause
+        db.Entry(cereal).Property(c => c.Version).OriginalValue = request.Version;
         MapToEntity(request, cereal);
+        cereal.Version++;
+
+        // Throws DbUpdateConcurrencyException if another user already changed the row
         await db.SaveChangesAsync();
         return cereal;
     }
