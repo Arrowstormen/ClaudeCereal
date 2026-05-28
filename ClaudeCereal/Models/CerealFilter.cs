@@ -36,5 +36,8 @@ public record CerealFilter(
     double? MaxRating,
     // Sorting
     SortBy? SortBy,
-    SortOrder? SortOrder
+    SortOrder? SortOrder,
+    // Pagination
+    int? Page,
+    int? PageSize
 );
