@@ -65,11 +65,16 @@ public static class CerealEndpoints
             return Results.File(imagePath, contentType ?? "application/octet-stream");
         });
 
-        group.MapPost("/import", async (IFormFile file, ICerealService service) =>
+        group.MapPost("/import", async (IFormFile? file, ICerealService service) =>
         {
+            if (file is null)
+                return Results.BadRequest("A file is required.");
+
             var format = DetectFormat(file.ContentType, file.FileName);
             if (format is null)
-                return Results.BadRequest("Unsupported file type. Upload a .csv or .json file.");
+                return Results.BadRequest(
+                    "Cannot determine file format. Use a .csv or .json file extension, " +
+                    "or set Content-Type to text/csv or application/json.");
 
             try
             {

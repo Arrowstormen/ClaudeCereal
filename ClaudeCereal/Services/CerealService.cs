@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ClaudeCereal.Data;
@@ -209,7 +210,13 @@ public class CerealService(AppDbContext db) : ICerealService
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(row!.Name))
+            if (row is null)
+            {
+                skipped.Add(new SkippedRow(rowNumber, "Row is null."));
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(row.Name))
             {
                 skipped.Add(new SkippedRow(rowNumber, "Name is required."));
                 continue;
@@ -273,21 +280,27 @@ public class CerealService(AppDbContext db) : ICerealService
 
         if (lines.Count == 0) return [];
 
-        // Auto-detect delimiter: whichever of comma/semicolon produces more columns wins
-        char delim = lines[0].Count(c => c == ',') >= lines[0].Count(c => c == ';') ? ',' : ';';
+        // Auto-detect delimiter: whichever produces more columns from the header row wins
+        var commaFields     = SplitCsvLine(lines[0], ',');
+        var semicolonFields = SplitCsvLine(lines[0], ';');
+        char delim          = commaFields.Length >= semicolonFields.Length ? ',' : ';';
+        var headerFields    = delim == ',' ? commaFields : semicolonFields;
 
         // Build header → column-index map (case-insensitive, first occurrence wins)
-        var headers = lines[0].Split(delim)
+        var headers = headerFields
             .Select((h, i) => (Name: h.Trim().ToLowerInvariant(), Index: i))
             .Where(x => !string.IsNullOrEmpty(x.Name))
             .GroupBy(x => x.Name)
             .ToDictionary(g => g.Key, g => g.First().Index);
 
+        if (!headers.ContainsKey("name"))
+            throw new InvalidDataException("CSV is missing a required 'name' column.");
+
         var result = new List<(CerealImportRow?, string?)>();
 
         for (int i = 1; i < lines.Count; i++)
         {
-            var fields = lines[i].Split(delim);
+            var fields = SplitCsvLine(lines[i], delim);
 
             // Local helper: get a trimmed field value by header name
             string Get(string header) =>
@@ -319,6 +332,62 @@ public class CerealService(AppDbContext db) : ICerealService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Splits a single CSV line respecting RFC 4180 quoting rules:
+    /// fields may be wrapped in double-quotes, and a literal double-quote
+    /// inside a quoted field is represented as two consecutive double-quotes ("").
+    /// </summary>
+    private static string[] SplitCsvLine(string line, char delim)
+    {
+        var fields = new List<string>();
+        var sb = new StringBuilder();
+        bool inQuotes = false;
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+
+            if (inQuotes)
+            {
+                if (c == '"')
+                {
+                    if (i + 1 < line.Length && line[i + 1] == '"')
+                    {
+                        sb.Append('"'); // escaped quote inside a quoted field
+                        i++;            // skip the second quote
+                    }
+                    else
+                    {
+                        inQuotes = false; // closing quote
+                    }
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            else
+            {
+                if (c == '"')
+                {
+                    inQuotes = true;
+                }
+                else if (c == delim)
+                {
+                    fields.Add(sb.ToString());
+                    sb.Clear();
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+        }
+
+        fields.Add(sb.ToString()); // last field (no trailing delimiter)
+        return [.. fields];
     }
 
     private static void ApplyImportRow(CerealImportRow row, Cereal target)
