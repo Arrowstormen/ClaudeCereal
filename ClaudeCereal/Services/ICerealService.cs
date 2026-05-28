@@ -4,7 +4,7 @@ namespace ClaudeCereal.Services;
 
 public interface ICerealService
 {
-    Task<IEnumerable<Cereal>> GetAllAsync();
+    Task<PagedResult<Cereal>> GetFilteredAsync(CerealFilter filter);
     Task<Cereal?> GetByIdAsync(int id);
     Task<Cereal> CreateAsync(CerealRequest request);
     Task<Cereal?> UpdateAsync(int id, CerealRequest request);

@@ -10,8 +10,14 @@ public static class CerealEndpoints
     {
         var group = app.MapGroup("/cereals");
 
-        group.MapGet("/", async (ICerealService service) =>
-            Results.Ok(await service.GetAllAsync()));
+        group.MapGet("/", async ([AsParameters] CerealFilter filter, ICerealService service) =>
+        {
+            var errors = filter.GetValidationErrors();
+            if (errors is not null)
+                return Results.ValidationProblem(errors);
+
+            return Results.Ok(await service.GetFilteredAsync(filter));
+        });
 
         group.MapGet("/{id:int}", async (int id, ICerealService service) =>
             await service.GetByIdAsync(id) is Cereal cereal
