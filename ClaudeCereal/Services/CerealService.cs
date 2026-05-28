@@ -99,18 +99,20 @@ public class CerealService(AppDbContext db) : ICerealService
         int page     = Math.Max(1, filter.Page ?? 1);
         int pageSize = Math.Clamp(filter.PageSize ?? 20, 1, 100);
 
-        var totalCount = await query.CountAsync();
-        var items      = await query
+        var countTask = query.CountAsync();
+        var itemsTask = query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
+        await Task.WhenAll(countTask, itemsTask);
+
         return new PagedResult<Cereal>(
-            items,
+            itemsTask.Result,
             page,
             pageSize,
-            totalCount,
-            (int)Math.Ceiling(totalCount / (double)pageSize));
+            countTask.Result,
+            (int)Math.Ceiling(countTask.Result / (double)pageSize));
     }
 
     public async Task<Cereal?> GetByIdAsync(int id) =>
