@@ -1,3 +1,4 @@
+using ClaudeCereal.Authentication;
 using ClaudeCereal.Models;
 using ClaudeCereal.Services;
 using Microsoft.AspNetCore.StaticFiles;
@@ -9,7 +10,8 @@ public static class CerealEndpoints
 {
     public static void MapCerealEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/cereals");
+        var group = app.MapGroup("/cereals")
+            .RequireAuthorization(Policies.ReaderOrAbove);  // floor for the entire group
 
         group.MapGet("/", async ([AsParameters] CerealFilter filter, ICerealService service) =>
         {
@@ -29,7 +31,7 @@ public static class CerealEndpoints
         {
             var created = await service.CreateAsync(request);
             return Results.Created($"/cereals/{created.Id}", created);
-        }).RequireAuthorization();
+        }).RequireAuthorization(Policies.EditorOrAbove);
 
         group.MapPut("/{id:int}", async (int id, CerealRequest request, ICerealService service) =>
         {
@@ -43,12 +45,13 @@ public static class CerealEndpoints
             {
                 return Results.Conflict();
             }
-        });
+        }).RequireAuthorization(Policies.EditorOrAbove);
 
         group.MapDelete("/{id:int}", async (int id, ICerealService service) =>
             await service.DeleteAsync(id)
                 ? Results.NoContent()
-                : Results.NotFound()).RequireAuthorization();
+                : Results.NotFound())
+            .RequireAuthorization(Policies.AdminOnly);
 
         group.MapGet("/{id:int}/image", async (int id, ICerealService service, ICerealImageService imageService) =>
         {
