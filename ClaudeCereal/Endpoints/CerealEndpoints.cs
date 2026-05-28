@@ -64,5 +64,41 @@ public static class CerealEndpoints
             new FileExtensionContentTypeProvider().TryGetContentType(imagePath, out var contentType);
             return Results.File(imagePath, contentType ?? "application/octet-stream");
         });
+
+        group.MapPost("/import", async (IFormFile file, ICerealService service) =>
+        {
+            var format = DetectFormat(file.ContentType, file.FileName);
+            if (format is null)
+                return Results.BadRequest("Unsupported file type. Upload a .csv or .json file.");
+
+            try
+            {
+                using var stream = file.OpenReadStream();
+                var result = await service.ImportAsync(stream, format.Value);
+                return Results.Ok(result);
+            }
+            catch (InvalidDataException ex)
+            {
+                return Results.BadRequest(ex.Message);
+            }
+        }).RequireAuthorization(Policies.EditorOrAbove)
+          .DisableAntiforgery();
+    }
+
+    private static ImportFormat? DetectFormat(string? contentType, string? fileName)
+    {
+        if (contentType is not null)
+        {
+            if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase)) return ImportFormat.Json;
+            if (contentType.Contains("csv",  StringComparison.OrdinalIgnoreCase)) return ImportFormat.Csv;
+            // browsers often send text/plain for .csv files dragged in
+            if (contentType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)) return ImportFormat.Csv;
+        }
+        return Path.GetExtension(fileName)?.ToLowerInvariant() switch
+        {
+            ".json" => ImportFormat.Json,
+            ".csv"  => ImportFormat.Csv,
+            _       => null
+        };
     }
 }

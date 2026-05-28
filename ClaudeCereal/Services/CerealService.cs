@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using ClaudeCereal.Data;
 using ClaudeCereal.Models;
 using Microsoft.EntityFrameworkCore;
@@ -168,4 +171,185 @@ public class CerealService(AppDbContext db) : ICerealService
         await db.SaveChangesAsync();
         return true;
     }
+
+    public async Task<ImportResult> ImportAsync(Stream content, ImportFormat format)
+    {
+        var parsed = format == ImportFormat.Json
+            ? await ParseJsonAsync(content)
+            : ParseCsv(content);
+
+        if (parsed.Count == 0)
+            return new ImportResult(0, 0, []);
+
+        // Pre-load any cereals that already exist for those names — one round-trip
+        var validNames = parsed
+            .Where(p => p.Row is not null && !string.IsNullOrWhiteSpace(p.Row.Name))
+            .Select(p => p.Row!.Name!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var existingByName = await db.Cereals
+            .Where(c => validNames.Contains(c.Name))
+            .ToDictionaryAsync(c => c.Name, StringComparer.OrdinalIgnoreCase);
+
+        int inserted = 0, updated = 0;
+        var skipped = new List<SkippedRow>();
+        // Track entities added in this batch so duplicate names in the file
+        // update the same in-memory entity rather than producing two DB rows.
+        var addedThisBatch = new Dictionary<string, Cereal>(StringComparer.OrdinalIgnoreCase);
+
+        for (int i = 0; i < parsed.Count; i++)
+        {
+            var (row, error) = parsed[i];
+            int rowNumber = i + 1;
+
+            if (error is not null)
+            {
+                skipped.Add(new SkippedRow(rowNumber, error));
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(row!.Name))
+            {
+                skipped.Add(new SkippedRow(rowNumber, "Name is required."));
+                continue;
+            }
+
+            if (existingByName.TryGetValue(row.Name, out var existing))
+            {
+                ApplyImportRow(row, existing);
+                updated++;
+            }
+            else if (addedThisBatch.TryGetValue(row.Name, out var inFlight))
+            {
+                // Duplicate name within the same file — last row wins, don't recount
+                ApplyImportRow(row, inFlight);
+            }
+            else
+            {
+                var cereal = new Cereal();
+                ApplyImportRow(row, cereal);
+                db.Cereals.Add(cereal);
+                addedThisBatch[row.Name] = cereal;
+                inserted++;
+            }
+        }
+
+        await db.SaveChangesAsync();
+        return new ImportResult(inserted, updated, skipped);
+    }
+
+    // ── Parsing helpers ─────────────────────────────────────────────────────────
+
+    private static readonly JsonSerializerOptions JsonImportOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    private static async Task<List<(CerealImportRow? Row, string? Error)>> ParseJsonAsync(Stream content)
+    {
+        List<CerealImportRow?>? rows;
+        try
+        {
+            rows = await JsonSerializer.DeserializeAsync<List<CerealImportRow?>>(content, JsonImportOptions);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException($"Invalid JSON: {ex.Message}", ex);
+        }
+
+        return rows?.Select(r => (r, (string?)null)).ToList() ?? [];
+    }
+
+    private static List<(CerealImportRow? Row, string? Error)> ParseCsv(Stream content)
+    {
+        using var reader = new StreamReader(content, leaveOpen: true);
+        var lines = new List<string>();
+        string? line;
+        while ((line = reader.ReadLine()) is not null)
+            if (!string.IsNullOrWhiteSpace(line))
+                lines.Add(line);
+
+        if (lines.Count == 0) return [];
+
+        // Auto-detect delimiter: whichever of comma/semicolon produces more columns wins
+        char delim = lines[0].Count(c => c == ',') >= lines[0].Count(c => c == ';') ? ',' : ';';
+
+        // Build header → column-index map (case-insensitive, first occurrence wins)
+        var headers = lines[0].Split(delim)
+            .Select((h, i) => (Name: h.Trim().ToLowerInvariant(), Index: i))
+            .Where(x => !string.IsNullOrEmpty(x.Name))
+            .GroupBy(x => x.Name)
+            .ToDictionary(g => g.Key, g => g.First().Index);
+
+        var result = new List<(CerealImportRow?, string?)>();
+
+        for (int i = 1; i < lines.Count; i++)
+        {
+            var fields = lines[i].Split(delim);
+
+            // Local helper: get a trimmed field value by header name
+            string Get(string header) =>
+                headers.TryGetValue(header, out int idx) && idx < fields.Length
+                    ? fields[idx].Trim()
+                    : string.Empty;
+
+            var row = new CerealImportRow
+            {
+                Name     = NullIfEmpty(Get("name")),
+                Mfr      = ImportEnum<Manufacturer>(Get("mfr")),
+                Type     = ImportEnum<CerealType>(Get("type")),
+                Calories = ImportInt(Get("calories")),
+                Protein  = ImportInt(Get("protein")),
+                Fat      = ImportInt(Get("fat")),
+                Sodium   = ImportInt(Get("sodium")),
+                Fiber    = ImportDouble(Get("fiber")),
+                Carbo    = ImportDouble(Get("carbo")),
+                Sugars   = ImportInt(Get("sugars")),
+                Potass   = ImportInt(Get("potass")),
+                Vitamins = ImportInt(Get("vitamins")),
+                Shelf    = ImportInt(Get("shelf")),
+                Weight   = ImportDouble(Get("weight")),
+                Cups     = ImportDouble(Get("cups")),
+                Rating   = ImportDouble(Get("rating")),
+            };
+
+            result.Add((row, null));
+        }
+
+        return result;
+    }
+
+    private static void ApplyImportRow(CerealImportRow row, Cereal target)
+    {
+        target.Name     = row.Name!;
+        target.Mfr      = row.Mfr;
+        target.Type     = row.Type;
+        target.Calories = row.Calories;
+        target.Protein  = row.Protein;
+        target.Fat      = row.Fat;
+        target.Sodium   = row.Sodium;
+        target.Fiber    = row.Fiber;
+        target.Carbo    = row.Carbo;
+        target.Sugars   = row.Sugars;
+        target.Potass   = row.Potass;
+        target.Vitamins = row.Vitamins;
+        target.Shelf    = row.Shelf;
+        target.Weight   = row.Weight;
+        target.Cups     = row.Cups;
+        target.Rating   = row.Rating;
+    }
+
+    private static string? NullIfEmpty(string s) =>
+        string.IsNullOrWhiteSpace(s) ? null : s;
+
+    private static T? ImportEnum<T>(string s) where T : struct, Enum =>
+        Enum.TryParse<T>(s, ignoreCase: true, out var result) ? result : null;
+
+    private static int? ImportInt(string s) =>
+        int.TryParse(s, out var v) ? v : null;
+
+    private static double? ImportDouble(string s) =>
+        double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : null;
 }

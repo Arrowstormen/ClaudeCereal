@@ -9,4 +9,5 @@ public interface ICerealService
     Task<Cereal> CreateAsync(CerealRequest request);
     Task<Cereal?> UpdateAsync(int id, CerealRequest request);
     Task<bool> DeleteAsync(int id);
+    Task<ImportResult> ImportAsync(Stream content, ImportFormat format);
 }
