@@ -5,6 +5,7 @@ namespace ClaudeCereal.Models;
 public class Cereal
 {
     public int Id { get; set; }
+    public uint Version { get; set; }
 
     [Required]
     public string Name { get; set; } = null!;

@@ -6,8 +6,111 @@ namespace ClaudeCereal.Services;
 
 public class CerealService(AppDbContext db) : ICerealService
 {
-    public async Task<IEnumerable<Cereal>> GetAllAsync() =>
-        await db.Cereals.ToListAsync();
+    public async Task<PagedResult<Cereal>> GetFilteredAsync(CerealFilter filter)
+    {
+        var query = db.Cereals.AsNoTracking().AsQueryable();
+
+        // Name
+        if (!string.IsNullOrEmpty(filter.NameContains))
+            query = query.Where(c => c.Name.Contains(filter.NameContains));
+        // Categorical
+        if (filter.Manufacturer.HasValue)
+            query = query.Where(c => c.Mfr == filter.Manufacturer);
+        if (filter.Type.HasValue)
+            query = query.Where(c => c.Type == filter.Type);
+        if (filter.Shelf.HasValue)
+            query = query.Where(c => c.Shelf == filter.Shelf);
+        // Nutrition ranges
+        if (filter.MinCalories.HasValue)
+            query = query.Where(c => c.Calories >= filter.MinCalories);
+        if (filter.MaxCalories.HasValue)
+            query = query.Where(c => c.Calories <= filter.MaxCalories);
+        if (filter.MinProtein.HasValue)
+            query = query.Where(c => c.Protein >= filter.MinProtein);
+        if (filter.MaxProtein.HasValue)
+            query = query.Where(c => c.Protein <= filter.MaxProtein);
+        if (filter.MinFat.HasValue)
+            query = query.Where(c => c.Fat >= filter.MinFat);
+        if (filter.MaxFat.HasValue)
+            query = query.Where(c => c.Fat <= filter.MaxFat);
+        if (filter.MinSodium.HasValue)
+            query = query.Where(c => c.Sodium >= filter.MinSodium);
+        if (filter.MaxSodium.HasValue)
+            query = query.Where(c => c.Sodium <= filter.MaxSodium);
+        if (filter.MinFiber.HasValue)
+            query = query.Where(c => c.Fiber >= filter.MinFiber);
+        if (filter.MaxFiber.HasValue)
+            query = query.Where(c => c.Fiber <= filter.MaxFiber);
+        if (filter.MinCarbo.HasValue)
+            query = query.Where(c => c.Carbo >= filter.MinCarbo);
+        if (filter.MaxCarbo.HasValue)
+            query = query.Where(c => c.Carbo <= filter.MaxCarbo);
+        if (filter.MinSugars.HasValue)
+            query = query.Where(c => c.Sugars >= filter.MinSugars);
+        if (filter.MaxSugars.HasValue)
+            query = query.Where(c => c.Sugars <= filter.MaxSugars);
+        if (filter.MinPotass.HasValue)
+            query = query.Where(c => c.Potass >= filter.MinPotass);
+        if (filter.MaxPotass.HasValue)
+            query = query.Where(c => c.Potass <= filter.MaxPotass);
+        if (filter.MinVitamins.HasValue)
+            query = query.Where(c => c.Vitamins >= filter.MinVitamins);
+        if (filter.MaxVitamins.HasValue)
+            query = query.Where(c => c.Vitamins <= filter.MaxVitamins);
+        // Serving size ranges
+        if (filter.MinWeight.HasValue)
+            query = query.Where(c => c.Weight >= filter.MinWeight);
+        if (filter.MaxWeight.HasValue)
+            query = query.Where(c => c.Weight <= filter.MaxWeight);
+        if (filter.MinCups.HasValue)
+            query = query.Where(c => c.Cups >= filter.MinCups);
+        if (filter.MaxCups.HasValue)
+            query = query.Where(c => c.Cups <= filter.MaxCups);
+        // Rating range
+        if (filter.MinRating.HasValue)
+            query = query.Where(c => c.Rating >= filter.MinRating);
+        if (filter.MaxRating.HasValue)
+            query = query.Where(c => c.Rating <= filter.MaxRating);
+
+        // Sorting — SortOrder is only applied when SortBy is also set;
+        // Id is always appended as a tiebreaker for fully deterministic pagination.
+        bool desc = filter.SortOrder == SortOrder.Desc;
+        IOrderedQueryable<Cereal> ordered = filter.SortBy switch
+        {
+            SortBy.Name     => desc ? query.OrderByDescending(c => c.Name)     : query.OrderBy(c => c.Name),
+            SortBy.Calories => desc ? query.OrderByDescending(c => c.Calories) : query.OrderBy(c => c.Calories),
+            SortBy.Protein  => desc ? query.OrderByDescending(c => c.Protein)  : query.OrderBy(c => c.Protein),
+            SortBy.Fat      => desc ? query.OrderByDescending(c => c.Fat)      : query.OrderBy(c => c.Fat),
+            SortBy.Sodium   => desc ? query.OrderByDescending(c => c.Sodium)   : query.OrderBy(c => c.Sodium),
+            SortBy.Fiber    => desc ? query.OrderByDescending(c => c.Fiber)    : query.OrderBy(c => c.Fiber),
+            SortBy.Carbo    => desc ? query.OrderByDescending(c => c.Carbo)    : query.OrderBy(c => c.Carbo),
+            SortBy.Sugars   => desc ? query.OrderByDescending(c => c.Sugars)   : query.OrderBy(c => c.Sugars),
+            SortBy.Potass   => desc ? query.OrderByDescending(c => c.Potass)   : query.OrderBy(c => c.Potass),
+            SortBy.Vitamins => desc ? query.OrderByDescending(c => c.Vitamins) : query.OrderBy(c => c.Vitamins),
+            SortBy.Shelf    => desc ? query.OrderByDescending(c => c.Shelf)    : query.OrderBy(c => c.Shelf),
+            SortBy.Weight   => desc ? query.OrderByDescending(c => c.Weight)   : query.OrderBy(c => c.Weight),
+            SortBy.Cups     => desc ? query.OrderByDescending(c => c.Cups)     : query.OrderBy(c => c.Cups),
+            SortBy.Rating   => desc ? query.OrderByDescending(c => c.Rating)   : query.OrderBy(c => c.Rating),
+            _               => query.OrderBy(c => c.Name)
+        };
+        query = ordered.ThenBy(c => c.Id);
+
+        int page     = Math.Max(1, filter.Page ?? 1);
+        int pageSize = Math.Clamp(filter.PageSize ?? 20, 1, 100);
+
+        var totalCount = await query.CountAsync();
+        var items      = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<Cereal>(
+            items,
+            page,
+            pageSize,
+            totalCount,
+            (int)Math.Ceiling(totalCount / (double)pageSize));
+    }
 
     public async Task<Cereal?> GetByIdAsync(int id) =>
         await db.Cereals.FindAsync(id);
@@ -26,7 +129,12 @@ public class CerealService(AppDbContext db) : ICerealService
         var cereal = await db.Cereals.FindAsync(id);
         if (cereal is null) return null;
 
+        // Tell EF Core to check the client's version in the SQL WHERE clause
+        db.Entry(cereal).Property(c => c.Version).OriginalValue = request.Version;
         MapToEntity(request, cereal);
+        cereal.Version++;
+
+        // Throws DbUpdateConcurrencyException if another user already changed the row
         await db.SaveChangesAsync();
         return cereal;
     }

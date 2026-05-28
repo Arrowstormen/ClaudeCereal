@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using ClaudeCereal.Authentication;
 using ClaudeCereal.Data;
 using ClaudeCereal.Endpoints;
@@ -8,13 +9,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
-var builder = WebApplication.CreateBuilder(args);
+ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
         ?? "Data Source=cereals.db"));
 
 builder.Services.AddScoped<ICerealService, CerealService>();
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 var imagePath = Path.Combine(
     AppContext.BaseDirectory,

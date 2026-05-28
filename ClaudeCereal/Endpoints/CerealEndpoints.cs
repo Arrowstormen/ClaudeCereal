@@ -2,6 +2,7 @@ using ClaudeCereal.Authentication;
 using ClaudeCereal.Models;
 using ClaudeCereal.Services;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClaudeCereal.Endpoints;
 
@@ -12,8 +13,14 @@ public static class CerealEndpoints
         var group = app.MapGroup("/cereals")
             .RequireAuthorization(Policies.ReaderOrAbove);  // floor for the entire group
 
-        group.MapGet("/", async (ICerealService service) =>
-            Results.Ok(await service.GetAllAsync()));
+        group.MapGet("/", async ([AsParameters] CerealFilter filter, ICerealService service) =>
+        {
+            var errors = filter.GetValidationErrors();
+            if (errors is not null)
+                return Results.ValidationProblem(errors);
+
+            return Results.Ok(await service.GetFilteredAsync(filter));
+        });
 
         group.MapGet("/{id:int}", async (int id, ICerealService service) =>
             await service.GetByIdAsync(id) is Cereal cereal
@@ -27,10 +34,18 @@ public static class CerealEndpoints
         }).RequireAuthorization(Policies.EditorOrAbove);
 
         group.MapPut("/{id:int}", async (int id, CerealRequest request, ICerealService service) =>
-            await service.UpdateAsync(id, request) is Cereal updated
-                ? Results.Ok(updated)
-                : Results.NotFound())
-            .RequireAuthorization(Policies.EditorOrAbove);
+        {
+            try
+            {
+                return await service.UpdateAsync(id, request) is Cereal updated
+                    ? Results.Ok(updated)
+                    : Results.NotFound();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Results.Conflict();
+            }
+        }).RequireAuthorization(Policies.EditorOrAbove);
 
         group.MapDelete("/{id:int}", async (int id, ICerealService service) =>
             await service.DeleteAsync(id)
