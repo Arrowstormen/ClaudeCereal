@@ -11,7 +11,7 @@ public class CerealService(AppDbContext db) : ICerealService
         var query = db.Cereals.AsNoTracking().AsQueryable();
 
         // Name
-        if (filter.NameContains is not null)
+        if (!string.IsNullOrEmpty(filter.NameContains))
             query = query.Where(c => c.Name.Contains(filter.NameContains));
         // Categorical
         if (filter.Manufacturer.HasValue)
@@ -72,7 +72,8 @@ public class CerealService(AppDbContext db) : ICerealService
         if (filter.MaxRating.HasValue)
             query = query.Where(c => c.Rating <= filter.MaxRating);
 
-        // Sorting — SortOrder is only applied when SortBy is also set
+        // Sorting — SortOrder is only applied when SortBy is also set;
+        // default to Name ascending for stable, predictable pagination.
         if (filter.SortBy is not null)
         {
             bool desc = filter.SortOrder == SortOrder.Desc;
@@ -92,27 +93,29 @@ public class CerealService(AppDbContext db) : ICerealService
                 SortBy.Weight   => desc ? query.OrderByDescending(c => c.Weight)   : query.OrderBy(c => c.Weight),
                 SortBy.Cups     => desc ? query.OrderByDescending(c => c.Cups)     : query.OrderBy(c => c.Cups),
                 SortBy.Rating   => desc ? query.OrderByDescending(c => c.Rating)   : query.OrderBy(c => c.Rating),
-                _               => query.OrderBy(c => c.Id)
+                _               => query.OrderBy(c => c.Name)
             };
+        }
+        else
+        {
+            query = query.OrderBy(c => c.Name);
         }
 
         int page     = Math.Max(1, filter.Page ?? 1);
         int pageSize = Math.Clamp(filter.PageSize ?? 20, 1, 100);
 
-        var countTask = query.CountAsync();
-        var itemsTask = query
+        var totalCount = await query.CountAsync();
+        var items      = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
-        await Task.WhenAll(countTask, itemsTask);
-
         return new PagedResult<Cereal>(
-            itemsTask.Result,
+            items,
             page,
             pageSize,
-            countTask.Result,
-            (int)Math.Ceiling(countTask.Result / (double)pageSize));
+            totalCount,
+            (int)Math.Ceiling(totalCount / (double)pageSize));
     }
 
     public async Task<Cereal?> GetByIdAsync(int id) =>
