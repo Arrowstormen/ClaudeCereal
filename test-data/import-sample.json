@@ -1,0 +1,49 @@
+[
+  {
+    "_comment": "--- INSERT: new cereal with all fields filled ---",
+    "Name": "Test Flakes",
+    "Mfr": "G",
+    "Type": "C",
+    "Calories": 110,
+    "Protein": 2,
+    "Fat": 1,
+    "Sodium": 200,
+    "Fiber": 1.0,
+    "Carbo": 21.0,
+    "Sugars": 5,
+    "Potass": 35,
+    "Vitamins": 25,
+    "Shelf": 2,
+    "Weight": 1.0,
+    "Cups": 0.75,
+    "Rating": 42.5
+  },
+  {
+    "_comment": "--- INSERT: new cereal with only required field ---",
+    "Name": "Bare Minimum Bites"
+  },
+  {
+    "_comment": "--- UPDATE: '100% Bran' already exists in seed data; Rating changed to verify upsert ---",
+    "Name": "100% Bran",
+    "Mfr": "N",
+    "Type": "C",
+    "Calories": 70,
+    "Protein": 4,
+    "Fat": 1,
+    "Sodium": 130,
+    "Fiber": 10.0,
+    "Carbo": 5.0,
+    "Sugars": 6,
+    "Potass": 280,
+    "Vitamins": 25,
+    "Shelf": 3,
+    "Weight": 1.0,
+    "Cups": 0.33,
+    "Rating": 99.0
+  },
+  {
+    "_comment": "--- SKIP: no Name field ---",
+    "Calories": 100,
+    "Protein": 3
+  }
+]
