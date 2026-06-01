@@ -1,4 +1,5 @@
 using ClaudeCereal.Data;
+using ClaudeCereal.Extensions;
 using ClaudeCereal.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,17 +29,6 @@ public class AuditService(AppDbContext db) : IAuditService
         // Most-recent entries first
         query = query.OrderByDescending(a => a.Timestamp);
 
-        int p  = Math.Max(1, filter.Page ?? 1);
-        int ps = Math.Clamp(filter.PageSize ?? 20, 1, 100);
-
-        var total = await query.CountAsync(cancellationToken);
-        var items = await query
-            .Skip((p - 1) * ps)
-            .Take(ps)
-            .ToListAsync(cancellationToken);
-
-        return new PagedResult<AuditLog>(
-            items, p, ps, total,
-            (int)Math.Ceiling(total / (double)ps));
+        return await query.ToPagedResultAsync(filter.Page, filter.PageSize, cancellationToken);
     }
 }
