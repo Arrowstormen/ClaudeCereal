@@ -143,7 +143,7 @@ public class CerealService(AppDbContext db) : ICerealService
         var cereal = new Cereal();
         MapToEntity(request, cereal);
         db.Cereals.Add(cereal);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(CancellationToken.None);
         return cereal;
     }
 
@@ -160,7 +160,7 @@ public class CerealService(AppDbContext db) : ICerealService
         cereal.Version++;
 
         // Throws DbUpdateConcurrencyException if another user already changed the row
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(CancellationToken.None);
         return cereal;
     }
 
@@ -191,7 +191,7 @@ public class CerealService(AppDbContext db) : ICerealService
         if (cereal is null) return false;
 
         cereal.DeletedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(CancellationToken.None);
         return true;
     }
 
@@ -265,7 +265,7 @@ public class CerealService(AppDbContext db) : ICerealService
             }
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(CancellationToken.None);
         return new ImportResult(inserted, updated, skipped);
     }
 
@@ -280,7 +280,7 @@ public class CerealService(AppDbContext db) : ICerealService
         if (cereal.DeletedAt is null) return cereal;
 
         cereal.DeletedAt = null;
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(CancellationToken.None);
         return cereal;
     }
 
