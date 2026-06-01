@@ -203,9 +203,10 @@ public class CerealService(AppDbContext db) : ICerealService
         // Global query filter means only active (non-deleted) rows are matched here;
         // restoring soft-deleted rows via import is tracked as a future improvement.
         var validNames = parsed
-            .Select(p => p.Row?.Name)
-            .OfType<string>()                          // filters nulls, narrows to string
+            .OfType<ParsedRow.Ok>()
+            .Select(p => p.Row.Name)
             .Where(name => !string.IsNullOrWhiteSpace(name))
+            .OfType<string>()                          // narrows string? to string
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -222,44 +223,41 @@ public class CerealService(AppDbContext db) : ICerealService
 
         for (int i = 0; i < parsed.Count; i++)
         {
-            var (row, error) = parsed[i];
             int rowNumber = i + 1;
 
-            if (error is not null)
+            switch (parsed[i])
             {
-                skipped.Add(new SkippedRow(rowNumber, error));
-                continue;
-            }
+                case ParsedRow.Err { Error: var error }:
+                    skipped.Add(new SkippedRow(rowNumber, error));
+                    continue;
 
-            if (row is null)
-            {
-                skipped.Add(new SkippedRow(rowNumber, "Row is null."));
-                continue;
-            }
+                // `is { } name` matches non-null and binds as string (non-nullable),
+                // so name can be passed directly to dictionary lookups without warnings.
+                case ParsedRow.Ok ok when ok.Row.Name is { } name && !string.IsNullOrWhiteSpace(name):
+                    if (existingByName.TryGetValue(name, out var existing))
+                    {
+                        ApplyImportRow(ok.Row, existing);
+                        updated++;
+                    }
+                    else if (addedThisBatch.TryGetValue(name, out var inFlight))
+                    {
+                        // Duplicate name within the same file — last row wins, don't recount
+                        ApplyImportRow(ok.Row, inFlight);
+                    }
+                    else
+                    {
+                        var cereal = new Cereal();
+                        ApplyImportRow(ok.Row, cereal);
+                        db.Cereals.Add(cereal);
+                        addedThisBatch[name] = cereal;
+                        inserted++;
+                    }
+                    break;
 
-            if (string.IsNullOrWhiteSpace(row.Name))
-            {
-                skipped.Add(new SkippedRow(rowNumber, "Name is required."));
-                continue;
-            }
-
-            if (existingByName.TryGetValue(row.Name, out var existing))
-            {
-                ApplyImportRow(row, existing);
-                updated++;
-            }
-            else if (addedThisBatch.TryGetValue(row.Name, out var inFlight))
-            {
-                // Duplicate name within the same file — last row wins, don't recount
-                ApplyImportRow(row, inFlight);
-            }
-            else
-            {
-                var cereal = new Cereal();
-                ApplyImportRow(row, cereal);
-                db.Cereals.Add(cereal);
-                addedThisBatch[row.Name] = cereal;
-                inserted++;
+                case ParsedRow.Ok:
+                    // Null or whitespace name — previous case's when guard didn't match
+                    skipped.Add(new SkippedRow(rowNumber, "Name is required."));
+                    continue;
             }
         }
 

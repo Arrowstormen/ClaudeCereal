@@ -15,7 +15,7 @@ internal static class CerealImportParser
         Converters = { new JsonStringEnumConverter() }
     };
 
-    public static Task<List<(CerealImportRow? Row, string? Error)>> ParseAsync(
+    public static Task<List<ParsedRow>> ParseAsync(
         Stream content, ImportFormat format) =>
         format == ImportFormat.Json
             ? ParseJsonAsync(content)
@@ -23,7 +23,7 @@ internal static class CerealImportParser
 
     // ── JSON ─────────────────────────────────────────────────────────────────────
 
-    private static async Task<List<(CerealImportRow? Row, string? Error)>> ParseJsonAsync(Stream content)
+    private static async Task<List<ParsedRow>> ParseJsonAsync(Stream content)
     {
         List<CerealImportRow?>? rows;
         try
@@ -35,12 +35,15 @@ internal static class CerealImportParser
             throw new InvalidDataException($"Invalid JSON: {ex.Message}", ex);
         }
 
-        return rows?.Select(r => (r, (string?)null)).ToList() ?? [];
+        return rows?.Select(r => r is null
+            ? (ParsedRow)new ParsedRow.Err("Row is null.")
+            : new ParsedRow.Ok(r))
+            .ToList() ?? [];
     }
 
     // ── CSV ──────────────────────────────────────────────────────────────────────
 
-    private static List<(CerealImportRow? Row, string? Error)> ParseCsv(Stream content)
+    private static List<ParsedRow> ParseCsv(Stream content)
     {
         using var reader = new StreamReader(content, leaveOpen: true);
         using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
@@ -61,16 +64,16 @@ internal static class CerealImportParser
         if (!csv.HeaderRecord?.Any(h => h.Equals("name", StringComparison.OrdinalIgnoreCase)) ?? true)
             throw new InvalidDataException("CSV is missing a required 'name' column.");
 
-        var result = new List<(CerealImportRow?, string?)>();
+        var result = new List<ParsedRow>();
         while (csv.Read())
         {
             try
             {
-                result.Add((csv.GetRecord<CerealImportRow>(), null));
+                result.Add(new ParsedRow.Ok(csv.GetRecord<CerealImportRow>()));
             }
             catch (CsvHelperException ex)
             {
-                result.Add((null, ex.InnerException?.Message ?? ex.Message));
+                result.Add(new ParsedRow.Err(ex.InnerException?.Message ?? ex.Message));
             }
         }
         return result;
