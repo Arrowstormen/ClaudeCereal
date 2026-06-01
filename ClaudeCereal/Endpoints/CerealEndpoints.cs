@@ -1,4 +1,5 @@
 using ClaudeCereal.Authentication;
+using ClaudeCereal.Exceptions;
 using ClaudeCereal.Models;
 using ClaudeCereal.Services;
 using Microsoft.AspNetCore.StaticFiles;
@@ -23,14 +24,26 @@ public static class CerealEndpoints
         });
 
         group.MapGet("/{id:int}", async (int id, ICerealService service) =>
-            await service.GetByIdAsync(id) is Cereal cereal
-                ? Results.Ok(cereal)
-                : Results.NotFound());
+        {
+            var cereal = await service.GetByIdAsync(id);
+            if (cereal is not null) return Results.Ok(cereal);
+            // Distinguish between "never existed" (404) and "soft-deleted" (410 Gone)
+            return await service.IsDeletedAsync(id)
+                ? Results.StatusCode(StatusCodes.Status410Gone)
+                : Results.NotFound();
+        });
 
         group.MapPost("/", async (CerealRequest request, ICerealService service) =>
         {
-            var created = await service.CreateAsync(request);
-            return Results.Created($"/cereals/{created.Id}", created);
+            try
+            {
+                var created = await service.CreateAsync(request);
+                return Results.Created($"/cereals/{created.Id}", created);
+            }
+            catch (SoftDeletedConflictException ex)
+            {
+                return Results.Conflict(ex.Message);
+            }
         }).RequireAuthorization(Policies.EditorOrAbove);
 
         group.MapPut("/{id:int}", async (int id, CerealRequest request, ICerealService service) =>
@@ -50,6 +63,12 @@ public static class CerealEndpoints
         group.MapDelete("/{id:int}", async (int id, ICerealService service) =>
             await service.DeleteAsync(id)
                 ? Results.NoContent()
+                : Results.NotFound())
+            .RequireAuthorization(Policies.AdminOnly);
+
+        group.MapPost("/{id:int}/restore", async (int id, ICerealService service) =>
+            await service.RestoreAsync(id) is Cereal cereal
+                ? Results.Ok(cereal)
                 : Results.NotFound())
             .RequireAuthorization(Policies.AdminOnly);
 

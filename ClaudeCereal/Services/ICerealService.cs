@@ -9,4 +9,6 @@ public interface ICerealService
     Task<Cereal> CreateAsync(CerealRequest request);
     Task<Cereal?> UpdateAsync(int id, CerealRequest request);
     Task<bool> DeleteAsync(int id);
+    Task<Cereal?> RestoreAsync(int id);
+    Task<bool> IsDeletedAsync(int id);
 }

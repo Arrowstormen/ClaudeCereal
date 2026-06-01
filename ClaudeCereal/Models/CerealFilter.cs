@@ -39,7 +39,9 @@ public record CerealFilter(
     SortOrder? SortOrder,
     // Pagination
     int? Page,
-    int? PageSize
+    int? PageSize,
+    // Soft delete
+    bool? IncludeDeleted
 )
 {
     public IReadOnlyDictionary<string, string[]>? GetValidationErrors()
