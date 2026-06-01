@@ -1,4 +1,5 @@
 using ClaudeCereal.Data;
+using ClaudeCereal.Exceptions;
 using ClaudeCereal.Import;
 using ClaudeCereal.Models;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,10 @@ public class CerealService(AppDbContext db) : ICerealService
 {
     public async Task<PagedResult<Cereal>> GetFilteredAsync(CerealFilter filter)
     {
-        var query = db.Cereals.AsNoTracking().AsQueryable();
+        // When IncludeDeleted is requested, bypass the global query filter so deleted rows appear.
+        var query = filter.IncludeDeleted == true
+            ? db.Cereals.AsNoTracking().IgnoreQueryFilters().AsQueryable()
+            : db.Cereals.AsNoTracking().AsQueryable();
 
         // Name
         if (!string.IsNullOrEmpty(filter.NameContains))
@@ -113,11 +117,27 @@ public class CerealService(AppDbContext db) : ICerealService
             (int)Math.Ceiling(totalCount / (double)pageSize));
     }
 
+    // Global query filter handles the DeletedAt == null predicate automatically.
     public async Task<Cereal?> GetByIdAsync(int id) =>
-        await db.Cereals.FindAsync(id);
+        await db.Cereals.FirstOrDefaultAsync(c => c.Id == id);
+
+    public async Task<bool> IsDeletedAsync(int id) =>
+        await db.Cereals
+            .IgnoreQueryFilters()
+            .AnyAsync(c => c.Id == id && c.DeletedAt != null);
 
     public async Task<Cereal> CreateAsync(CerealRequest request)
     {
+        // If a soft-deleted row with the same name exists, reject the create so that an
+        // editor cannot indirectly restore an admin-only resource. The caller should surface
+        // this as 409 Conflict and direct the client to request an admin restore.
+        var existing = await db.Cereals
+            .IgnoreQueryFilters()
+            .AnyAsync(c => c.Name == request.Name && c.DeletedAt != null);
+
+        if (existing)
+            throw new SoftDeletedConflictException(request.Name);
+
         var cereal = new Cereal();
         MapToEntity(request, cereal);
         db.Cereals.Add(cereal);
@@ -127,7 +147,8 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<Cereal?> UpdateAsync(int id, CerealRequest request)
     {
-        var cereal = await db.Cereals.FindAsync(id);
+        // Global query filter ensures this only finds active (non-deleted) rows.
+        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id);
         if (cereal is null) return null;
 
         // Tell EF Core to check the client's version in the SQL WHERE clause
@@ -162,10 +183,11 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var cereal = await db.Cereals.FindAsync(id);
+        // Global query filter ensures only active rows are found.
+        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id);
         if (cereal is null) return false;
 
-        db.Cereals.Remove(cereal);
+        cereal.DeletedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return true;
     }
@@ -177,7 +199,9 @@ public class CerealService(AppDbContext db) : ICerealService
         if (parsed.Count == 0)
             return new ImportResult(0, 0, []);
 
-        // Pre-load any cereals that already exist for those names — one round-trip
+        // Pre-load any cereals that already exist for those names — one round-trip.
+        // Global query filter means only active (non-deleted) rows are matched here;
+        // restoring soft-deleted rows via import is tracked as a future improvement.
         var validNames = parsed
             .Where(p => p.Row is not null && !string.IsNullOrWhiteSpace(p.Row.Name))
             .Select(p => p.Row!.Name!)
@@ -241,6 +265,17 @@ public class CerealService(AppDbContext db) : ICerealService
         return new ImportResult(inserted, updated, skipped);
     }
 
+    public async Task<Cereal?> RestoreAsync(int id)
+    {
+        // FindAsync bypasses global query filters, so this correctly finds deleted rows.
+        var cereal = await db.Cereals.FindAsync(id);
+        if (cereal is null) return null;
+
+        cereal.DeletedAt = null;
+        await db.SaveChangesAsync();
+        return cereal;
+    }
+
     private static void ApplyImportRow(CerealImportRow row, Cereal target)
     {
         target.Name     = row.Name!;
@@ -260,5 +295,4 @@ public class CerealService(AppDbContext db) : ICerealService
         target.Cups     = row.Cups;
         target.Rating   = row.Rating;
     }
-
 }

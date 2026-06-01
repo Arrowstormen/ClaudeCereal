@@ -6,6 +6,7 @@ public class Cereal
 {
     public int Id { get; set; }
     public uint Version { get; set; }
+    public DateTime? DeletedAt { get; set; }
 
     [Required]
     public string Name { get; set; } = null!;
