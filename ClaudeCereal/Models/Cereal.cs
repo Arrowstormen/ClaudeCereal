@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ClaudeCereal.Models;
 
-public class Cereal
+public class Cereal : IAuditable
 {
     public int Id { get; set; }
     public uint Version { get; set; }
