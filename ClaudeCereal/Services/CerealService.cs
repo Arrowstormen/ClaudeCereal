@@ -203,8 +203,9 @@ public class CerealService(AppDbContext db) : ICerealService
         // Global query filter means only active (non-deleted) rows are matched here;
         // restoring soft-deleted rows via import is tracked as a future improvement.
         var validNames = parsed
-            .Where(p => p.Row is not null && !string.IsNullOrWhiteSpace(p.Row.Name))
-            .Select(p => p.Row!.Name!)
+            .Select(p => p.Row?.Name)
+            .OfType<string>()                          // filters nulls, narrows to string
+            .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -278,7 +279,7 @@ public class CerealService(AppDbContext db) : ICerealService
 
     private static void ApplyImportRow(CerealImportRow row, Cereal target)
     {
-        target.Name     = row.Name!;
+        target.Name     = row.Name ?? throw new ArgumentException("Name must not be null.", nameof(row));
         target.Mfr      = row.Mfr;
         target.Type     = row.Type;
         target.Calories = row.Calories;
