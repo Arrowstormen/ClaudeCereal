@@ -16,19 +16,21 @@ internal static class CerealImportParser
     };
 
     public static Task<List<ParsedRow>> ParseAsync(
-        Stream content, ImportFormat format) =>
+        Stream content, ImportFormat format, CancellationToken cancellationToken = default) =>
         format == ImportFormat.Json
-            ? ParseJsonAsync(content)
+            ? ParseJsonAsync(content, cancellationToken)
             : Task.FromResult(ParseCsv(content));
 
     // ── JSON ─────────────────────────────────────────────────────────────────────
 
-    private static async Task<List<ParsedRow>> ParseJsonAsync(Stream content)
+    private static async Task<List<ParsedRow>> ParseJsonAsync(
+        Stream content, CancellationToken cancellationToken = default)
     {
         List<CerealImportRow?>? rows;
         try
         {
-            rows = await JsonSerializer.DeserializeAsync<List<CerealImportRow?>>(content, JsonOptions);
+            rows = await JsonSerializer.DeserializeAsync<List<CerealImportRow?>>(
+                content, JsonOptions, cancellationToken);
         }
         catch (JsonException ex)
         {
