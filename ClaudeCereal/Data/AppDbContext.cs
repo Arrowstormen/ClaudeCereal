@@ -37,16 +37,34 @@ public class AppDbContext(
         });
     }
 
+    // Block synchronous saves — the audit write requires a second round-trip,
+    // which must be async to avoid deadlocks in ASP.NET Core.
+    public override int SaveChanges() =>
+        throw new NotSupportedException("Use SaveChangesAsync to ensure audit logs are written.");
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess) =>
+        throw new NotSupportedException("Use SaveChangesAsync to ensure audit logs are written.");
+
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         // Capture state before saving — ChangeTracker resets entries after base.SaveChangesAsync
         var pendingEntries = CaptureAuditEntries();
 
-        var result = await base.SaveChangesAsync(cancellationToken);
+        // Fast path: no cereal changes means no second save, so no transaction needed
+        if (pendingEntries.Count == 0)
+            return await base.SaveChangesAsync(cancellationToken);
 
-        // Write audit logs in a second save so that auto-generated entity IDs are available
-        if (pendingEntries.Count > 0)
+        // Both saves must be atomic: a failed audit write must not leave committed
+        // changes without a corresponding audit trail. Only open a new transaction
+        // if there is not already one in progress (e.g. from an outer unit of work).
+        var tx = Database.CurrentTransaction is null
+            ? await Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        try
         {
+            var result = await base.SaveChangesAsync(cancellationToken);
+
             var actor = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "system";
             var now   = DateTime.UtcNow;
 
@@ -61,9 +79,18 @@ public class AppDbContext(
             }));
 
             await base.SaveChangesAsync(cancellationToken);
-        }
 
-        return result;
+            if (tx is not null)
+                await tx.CommitAsync(cancellationToken);
+
+            return result;
+        }
+        finally
+        {
+            // Disposing without a preceding CommitAsync rolls the transaction back
+            if (tx is not null)
+                await tx.DisposeAsync();
+        }
     }
 
     // Properties excluded from field-level change tracking

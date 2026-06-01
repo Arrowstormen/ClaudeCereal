@@ -15,6 +15,9 @@ public static class AuditEndpoints
         group.MapGet("/", async (
             int?         entityId,
             AuditAction? action,
+            string?      actor,
+            DateTime?    from,
+            DateTime?    to,
             int?         page,
             int?         pageSize,
             AppDbContext db) =>
@@ -25,6 +28,12 @@ public static class AuditEndpoints
                 query = query.Where(a => a.EntityId == entityId.Value);
             if (action.HasValue)
                 query = query.Where(a => a.Action == action.Value);
+            if (actor is not null)
+                query = query.Where(a => a.Actor == actor);
+            if (from.HasValue)
+                query = query.Where(a => a.Timestamp >= from.Value);
+            if (to.HasValue)
+                query = query.Where(a => a.Timestamp <= to.Value);
 
             // Most-recent entries first
             query = query.OrderByDescending(a => a.Timestamp);
