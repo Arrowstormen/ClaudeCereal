@@ -16,6 +16,7 @@ public static class AuditEndpoints
             int?         entityId,
             AuditAction? action,
             string?      actor,
+            string?      correlationId,
             DateTime?    from,
             DateTime?    to,
             int?         page,
@@ -30,6 +31,8 @@ public static class AuditEndpoints
                 query = query.Where(a => a.Action == action.Value);
             if (actor is not null)
                 query = query.Where(a => a.Actor == actor);
+            if (correlationId is not null)
+                query = query.Where(a => a.CorrelationId == correlationId);
             if (from.HasValue)
                 query = query.Where(a => a.Timestamp >= from.Value);
             if (to.HasValue)

@@ -34,6 +34,7 @@ public class AppDbContext(
 
             entity.HasIndex(a => a.EntityId);
             entity.HasIndex(a => a.Timestamp);
+            entity.HasIndex(a => a.CorrelationId);
         });
     }
 
@@ -47,6 +48,10 @@ public class AppDbContext(
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // Audit log entries are immutable — reject any attempt to modify or delete them
+        if (ChangeTracker.Entries<AuditLog>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Audit log entries are immutable and cannot be modified or deleted.");
+
         // Capture state before saving — ChangeTracker resets entries after base.SaveChangesAsync
         var pendingEntries = CaptureAuditEntries();
 
@@ -65,17 +70,19 @@ public class AppDbContext(
         {
             var result = await base.SaveChangesAsync(cancellationToken);
 
-            var actor = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "system";
-            var now   = DateTime.UtcNow;
+            var actor         = httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "system";
+            var correlationId = httpContextAccessor.HttpContext?.TraceIdentifier    ?? Guid.NewGuid().ToString();
+            var now           = DateTime.UtcNow;
 
             AuditLogs.AddRange(pendingEntries.Select(e => new AuditLog
             {
-                Timestamp  = now,
-                Actor      = actor,
-                Action     = e.Action,
-                EntityId   = e.Entity.Id,   // populated by EF after the first save
-                EntityName = e.EntityName,
-                Changes    = e.Changes
+                Timestamp     = now,
+                Actor         = actor,
+                CorrelationId = correlationId,
+                Action        = e.Action,
+                EntityId      = e.Entity.Id,   // populated by EF after the first save
+                EntityName    = e.EntityName,
+                Changes       = e.Changes
             }));
 
             await base.SaveChangesAsync(cancellationToken);
