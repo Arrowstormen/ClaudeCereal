@@ -213,7 +213,8 @@ public class CerealService(AppDbContext db) : ICerealService
             .Where(c => validNames.Contains(c.Name))
             .ToDictionaryAsync(c => c.Name, StringComparer.OrdinalIgnoreCase);
 
-        int inserted = 0, updated = 0;
+        int inserted = 0;
+        int updated  = 0;
         var skipped = new List<SkippedRow>();
         // Track entities added in this batch so duplicate names in the file
         // update the same in-memory entity rather than producing two DB rows.
