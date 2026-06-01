@@ -271,6 +271,10 @@ public class CerealService(AppDbContext db) : ICerealService
         var cereal = await db.Cereals.FindAsync(id);
         if (cereal is null) return null;
 
+        // Already active — return the current row without an unnecessary write or
+        // audit entry. The operation is idempotent: callers receive 200 either way.
+        if (cereal.DeletedAt is null) return cereal;
+
         cereal.DeletedAt = null;
         await db.SaveChangesAsync();
         return cereal;
