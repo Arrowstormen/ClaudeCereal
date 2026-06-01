@@ -15,6 +15,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
         ?? "Data Source=cereals.db"));
 
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICerealService, CerealService>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -88,5 +89,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapCerealEndpoints();
+app.MapAuditEndpoints();
 
 app.Run();
