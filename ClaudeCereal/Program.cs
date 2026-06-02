@@ -56,7 +56,7 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddOpenApi(options =>
 {
-    options.AddDocumentTransformer((document, context, ct) =>
+    options.AddDocumentTransformer((document, context, _) =>
     {
         document.Components ??= new OpenApiComponents();
         document.Components.SecuritySchemes = new Dictionary<string, IOpenApiSecurityScheme>
