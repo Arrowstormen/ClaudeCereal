@@ -16,19 +16,21 @@ internal static class CerealImportParser
     };
 
     public static Task<List<ParsedRow>> ParseAsync(
-        Stream content, ImportFormat format) =>
+        Stream content, ImportFormat format, CancellationToken cancellationToken = default) =>
         format == ImportFormat.Json
-            ? ParseJsonAsync(content)
-            : Task.FromResult(ParseCsv(content));
+            ? ParseJsonAsync(content, cancellationToken)
+            : Task.FromResult(ParseCsv(content, cancellationToken));
 
     // ── JSON ─────────────────────────────────────────────────────────────────────
 
-    private static async Task<List<ParsedRow>> ParseJsonAsync(Stream content)
+    private static async Task<List<ParsedRow>> ParseJsonAsync(
+        Stream content, CancellationToken cancellationToken = default)
     {
         List<CerealImportRow?>? rows;
         try
         {
-            rows = await JsonSerializer.DeserializeAsync<List<CerealImportRow?>>(content, JsonOptions);
+            rows = await JsonSerializer.DeserializeAsync<List<CerealImportRow?>>(
+                content, JsonOptions, cancellationToken);
         }
         catch (JsonException ex)
         {
@@ -43,7 +45,7 @@ internal static class CerealImportParser
 
     // ── CSV ──────────────────────────────────────────────────────────────────────
 
-    private static List<ParsedRow> ParseCsv(Stream content)
+    private static List<ParsedRow> ParseCsv(Stream content, CancellationToken cancellationToken = default)
     {
         using var reader = new StreamReader(content, leaveOpen: true);
         using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
@@ -67,6 +69,7 @@ internal static class CerealImportParser
         var result = new List<ParsedRow>();
         while (csv.Read())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 result.Add(new ParsedRow.Ok(csv.GetRecord<CerealImportRow>()));
