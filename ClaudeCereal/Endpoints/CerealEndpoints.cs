@@ -14,30 +14,33 @@ public static class CerealEndpoints
         var group = app.MapGroup("/cereals")
             .RequireAuthorization(Policies.ReaderOrAbove);  // floor for the entire group
 
-        group.MapGet("/", async ([AsParameters] CerealFilter filter, ICerealService service) =>
+        group.MapGet("/", async (
+            [AsParameters] CerealFilter filter,
+            ICerealService              service,
+            CancellationToken           cancellationToken) =>
         {
             var errors = filter.GetValidationErrors();
             if (errors is not null)
                 return Results.ValidationProblem(errors);
 
-            return Results.Ok(await service.GetFilteredAsync(filter));
+            return Results.Ok(await service.GetFilteredAsync(filter, cancellationToken));
         });
 
-        group.MapGet("/{id:int}", async (int id, ICerealService service) =>
+        group.MapGet("/{id:int}", async (int id, ICerealService service, CancellationToken cancellationToken) =>
         {
-            var cereal = await service.GetByIdAsync(id);
+            var cereal = await service.GetByIdAsync(id, cancellationToken);
             if (cereal is not null) return Results.Ok(cereal);
             // Distinguish between "never existed" (404) and "soft-deleted" (410 Gone)
-            return await service.IsDeletedAsync(id)
+            return await service.IsDeletedAsync(id, cancellationToken)
                 ? Results.StatusCode(StatusCodes.Status410Gone)
                 : Results.NotFound();
         });
 
-        group.MapPost("/", async (CerealRequest request, ICerealService service) =>
+        group.MapPost("/", async (CerealRequest request, ICerealService service, CancellationToken cancellationToken) =>
         {
             try
             {
-                var created = await service.CreateAsync(request);
+                var created = await service.CreateAsync(request, cancellationToken);
                 return Results.Created($"/cereals/{created.Id}", created);
             }
             catch (SoftDeletedConflictException ex)
@@ -46,11 +49,12 @@ public static class CerealEndpoints
             }
         }).RequireAuthorization(Policies.EditorOrAbove);
 
-        group.MapPut("/{id:int}", async (int id, CerealRequest request, ICerealService service) =>
+        group.MapPut("/{id:int}", async (
+            int id, CerealRequest request, ICerealService service, CancellationToken cancellationToken) =>
         {
             try
             {
-                return await service.UpdateAsync(id, request) is Cereal updated
+                return await service.UpdateAsync(id, request, cancellationToken) is Cereal updated
                     ? Results.Ok(updated)
                     : Results.NotFound();
             }
@@ -60,21 +64,30 @@ public static class CerealEndpoints
             }
         }).RequireAuthorization(Policies.EditorOrAbove);
 
-        group.MapDelete("/{id:int}", async (int id, ICerealService service) =>
-            await service.DeleteAsync(id)
+        group.MapDelete("/{id:int}", async (int id, ICerealService service, CancellationToken cancellationToken) =>
+            await service.DeleteAsync(id, cancellationToken)
                 ? Results.NoContent()
                 : Results.NotFound())
             .RequireAuthorization(Policies.AdminOnly);
 
-        group.MapPost("/{id:int}/restore", async (int id, ICerealService service) =>
-            await service.RestoreAsync(id) is Cereal cereal
-                ? Results.Ok(cereal)
-                : Results.NotFound())
-            .RequireAuthorization(Policies.AdminOnly);
-
-        group.MapGet("/{id:int}/image", async (int id, ICerealService service, ICerealImageService imageService) =>
+        group.MapPost("/{id:int}/restore", async (int id, ICerealService service, CancellationToken cancellationToken) =>
         {
-            var cereal = await service.GetByIdAsync(id);
+            try
+            {
+                return await service.RestoreAsync(id, cancellationToken) is Cereal cereal
+                    ? Results.Ok(cereal)
+                    : Results.NotFound();
+            }
+            catch (CerealAlreadyActiveException ex)
+            {
+                return Results.Conflict(ex.Message);
+            }
+        }).RequireAuthorization(Policies.AdminOnly);
+
+        group.MapGet("/{id:int}/image", async (
+            int id, ICerealService service, ICerealImageService imageService, CancellationToken cancellationToken) =>
+        {
+            var cereal = await service.GetByIdAsync(id, cancellationToken);
             if (cereal is null) return Results.NotFound();
 
             var imagePath = imageService.GetImagePath(cereal.Name);
@@ -84,7 +97,7 @@ public static class CerealEndpoints
             return Results.File(imagePath, contentType ?? "application/octet-stream");
         });
 
-        group.MapPost("/import", async (IFormFile? file, ICerealService service) =>
+        group.MapPost("/import", async (IFormFile? file, ICerealService service, CancellationToken cancellationToken) =>
         {
             if (file is null)
                 return Results.BadRequest("A file is required.");
@@ -98,7 +111,7 @@ public static class CerealEndpoints
             try
             {
                 using var stream = file.OpenReadStream();
-                var result = await service.ImportAsync(stream, format.Value);
+                var result = await service.ImportAsync(stream, format.Value, cancellationToken);
                 return Results.Ok(result);
             }
             catch (InvalidDataException ex)
@@ -115,8 +128,8 @@ public static class CerealEndpoints
         {
             if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase)) return ImportFormat.Json;
             if (contentType.Contains("csv",  StringComparison.OrdinalIgnoreCase)) return ImportFormat.Csv;
-            // browsers often send text/plain for .csv files dragged in
-            if (contentType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)) return ImportFormat.Csv;
+            // Browsers often send text/plain for .csv files dragged into a file picker
+            if (contentType.Equals("text/plain", StringComparison.OrdinalIgnoreCase)) return ImportFormat.Csv;
         }
         return Path.GetExtension(fileName)?.ToLowerInvariant() switch
         {

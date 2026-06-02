@@ -9,7 +9,8 @@ namespace ClaudeCereal.Services;
 
 public class CerealService(AppDbContext db) : ICerealService
 {
-    public async Task<PagedResult<Cereal>> GetFilteredAsync(CerealFilter filter)
+    public async Task<PagedResult<Cereal>> GetFilteredAsync(
+        CerealFilter filter, CancellationToken cancellationToken = default)
     {
         // When IncludeDeleted is requested, bypass the global query filter so deleted rows appear.
         var query = filter.IncludeDeleted == true
@@ -101,26 +102,27 @@ public class CerealService(AppDbContext db) : ICerealService
         };
         query = ordered.ThenBy(c => c.Id);
 
-        return await query.ToPagedResultAsync(filter.Page, filter.PageSize);
+        return await query.ToPagedResultAsync(filter.Page, filter.PageSize, cancellationToken);
     }
 
     // Global query filter handles the DeletedAt == null predicate automatically.
-    public async Task<Cereal?> GetByIdAsync(int id) =>
-        await db.Cereals.FirstOrDefaultAsync(c => c.Id == id);
+    public async Task<Cereal?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
+        await db.Cereals.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
-    public async Task<bool> IsDeletedAsync(int id) =>
+    public async Task<bool> IsDeletedAsync(int id, CancellationToken cancellationToken = default) =>
         await db.Cereals
             .IgnoreQueryFilters()
-            .AnyAsync(c => c.Id == id && c.DeletedAt != null);
+            .AnyAsync(c => c.Id == id && c.DeletedAt != null, cancellationToken);
 
-    public async Task<Cereal> CreateAsync(CerealRequest request)
+    public async Task<Cereal> CreateAsync(
+        CerealRequest request, CancellationToken cancellationToken = default)
     {
         // If a soft-deleted row with the same name exists, reject the create so that an
         // editor cannot indirectly restore an admin-only resource. The caller should surface
         // this as 409 Conflict and direct the client to request an admin restore.
         var existing = await db.Cereals
             .IgnoreQueryFilters()
-            .AnyAsync(c => c.Name == request.Name && c.DeletedAt != null);
+            .AnyAsync(c => c.Name == request.Name && c.DeletedAt != null, cancellationToken);
 
         if (existing)
             throw new SoftDeletedConflictException(request.Name);
@@ -128,14 +130,15 @@ public class CerealService(AppDbContext db) : ICerealService
         var cereal = new Cereal();
         MapToEntity(request, cereal);
         db.Cereals.Add(cereal);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(CancellationToken.None);
         return cereal;
     }
 
-    public async Task<Cereal?> UpdateAsync(int id, CerealRequest request)
+    public async Task<Cereal?> UpdateAsync(
+        int id, CerealRequest request, CancellationToken cancellationToken = default)
     {
         // Global query filter ensures this only finds active (non-deleted) rows.
-        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id);
+        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
         if (cereal is null) return null;
 
         // Tell EF Core to check the client's version in the SQL WHERE clause
@@ -144,7 +147,7 @@ public class CerealService(AppDbContext db) : ICerealService
         cereal.Version++;
 
         // Throws DbUpdateConcurrencyException if another user already changed the row
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(CancellationToken.None);
         return cereal;
     }
 
@@ -168,20 +171,21 @@ public class CerealService(AppDbContext db) : ICerealService
         target.Rating   = request.Rating;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         // Global query filter ensures only active rows are found.
-        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id);
+        var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
         if (cereal is null) return false;
 
         cereal.DeletedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(CancellationToken.None);
         return true;
     }
 
-    public async Task<ImportResult> ImportAsync(Stream content, ImportFormat format)
+    public async Task<ImportResult> ImportAsync(
+        Stream content, ImportFormat format, CancellationToken cancellationToken = default)
     {
-        var parsed = await CerealImportParser.ParseAsync(content, format);
+        var parsed = await CerealImportParser.ParseAsync(content, format, cancellationToken);
 
         if (parsed.Count == 0)
             return new ImportResult(0, 0, []);
@@ -199,7 +203,7 @@ public class CerealService(AppDbContext db) : ICerealService
 
         var existingByName = await db.Cereals
             .Where(c => validNames.Contains(c.Name))
-            .ToDictionaryAsync(c => c.Name, StringComparer.OrdinalIgnoreCase);
+            .ToDictionaryAsync(c => c.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
         int inserted = 0;
         int updated  = 0;
@@ -248,18 +252,22 @@ public class CerealService(AppDbContext db) : ICerealService
             }
         }
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(CancellationToken.None);
         return new ImportResult(inserted, updated, skipped);
     }
 
-    public async Task<Cereal?> RestoreAsync(int id)
+    public async Task<Cereal?> RestoreAsync(int id, CancellationToken cancellationToken = default)
     {
         // FindAsync bypasses global query filters, so this correctly finds deleted rows.
-        var cereal = await db.Cereals.FindAsync(id);
+        var cereal = await db.Cereals.FindAsync([id], cancellationToken);
         if (cereal is null) return null;
 
+        // Already active — the precondition for restore is not met.
+        // Throw so the caller can surface this as 409 Conflict.
+        if (cereal.DeletedAt is null) throw new CerealAlreadyActiveException(id);
+
         cereal.DeletedAt = null;
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(CancellationToken.None);
         return cereal;
     }
 
