@@ -17,6 +17,6 @@ public class CerealImageService : ICerealImageService
     public string? GetImagePath(string cerealName) =>
         _index.TryGetValue(Slugify(cerealName), out var path) ? path : null;
 
-    private static string Slugify(string s) =>
-        new string(s.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+    private static string Slugify(string input) =>
+        new string(input.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
 }

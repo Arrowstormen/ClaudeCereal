@@ -49,21 +49,21 @@ public static class CerealSeeder
         };
     }
 
-    private static T? ParseEnum<T>(string s) where T : struct, Enum =>
-        Enum.TryParse<T>(s.Trim(), ignoreCase: true, out var result) ? result : null;
+    private static T? ParseEnum<T>(string input) where T : struct, Enum =>
+        Enum.TryParse<T>(input.Trim(), ignoreCase: true, out var result) ? result : null;
 
-    private static int? ParseInt(string s)
+    private static int? ParseInt(string input)
     {
-        if (int.TryParse(s.Trim(), out var v) && v != -1)
-            return v;
+        if (int.TryParse(input.Trim(), out var parsed) && parsed != -1)
+            return parsed;
         return null;
     }
 
-    private static double? ParseDouble(string s)
+    private static double? ParseDouble(string input)
     {
-        if (double.TryParse(s.Trim(), System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var v) && v != -1)
-            return v;
+        if (double.TryParse(input.Trim(), System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed) && parsed != -1)
+            return parsed;
         return null;
     }
 }
