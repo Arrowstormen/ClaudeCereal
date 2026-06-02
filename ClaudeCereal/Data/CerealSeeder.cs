@@ -26,26 +26,26 @@ public static class CerealSeeder
 
     private static Cereal ParseLine(string line)
     {
-        var f = line.Split(';');
+        var fields = line.Split(';');
 
         return new Cereal
         {
-            Name     = f[0].Trim(),
-            Mfr      = ParseEnum<Manufacturer>(f[1]),
-            Type     = ParseEnum<CerealType>(f[2]),
-            Calories = ParseInt(f[3]),
-            Protein  = ParseInt(f[4]),
-            Fat      = ParseInt(f[5]),
-            Sodium   = ParseInt(f[6]),
-            Fiber    = ParseDouble(f[7]),
-            Carbo    = ParseDouble(f[8]),
-            Sugars   = ParseInt(f[9]),
-            Potass   = ParseInt(f[10]),
-            Vitamins = ParseInt(f[11]),
-            Shelf    = ParseInt(f[12]),
-            Weight   = ParseDouble(f[13]),
-            Cups     = ParseDouble(f[14]),
-            Rating   = ParseDouble(f[15]),
+            Name     = fields[0].Trim(),
+            Mfr      = ParseEnum<Manufacturer>(fields[1]),
+            Type     = ParseEnum<CerealType>(fields[2]),
+            Calories = ParseInt(fields[3]),
+            Protein  = ParseInt(fields[4]),
+            Fat      = ParseInt(fields[5]),
+            Sodium   = ParseInt(fields[6]),
+            Fiber    = ParseDouble(fields[7]),
+            Carbo    = ParseDouble(fields[8]),
+            Sugars   = ParseInt(fields[9]),
+            Potass   = ParseInt(fields[10]),
+            Vitamins = ParseInt(fields[11]),
+            Shelf    = ParseInt(fields[12]),
+            Weight   = ParseDouble(fields[13]),
+            Cups     = ParseDouble(fields[14]),
+            Rating   = ParseDouble(fields[15]),
         };
     }
 
