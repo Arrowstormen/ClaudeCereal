@@ -81,23 +81,23 @@ public class CerealService(AppDbContext db) : ICerealService
 
         // Sorting — SortOrder is only applied when SortBy is also set;
         // Id is always appended as a tiebreaker for fully deterministic pagination.
-        bool desc = filter.SortOrder == SortOrder.Desc;
+        bool isDescending = filter.SortOrder == SortOrder.Desc;
         IOrderedQueryable<Cereal> ordered = filter.SortBy switch
         {
-            SortBy.Name     => desc ? query.OrderByDescending(c => c.Name)     : query.OrderBy(c => c.Name),
-            SortBy.Calories => desc ? query.OrderByDescending(c => c.Calories) : query.OrderBy(c => c.Calories),
-            SortBy.Protein  => desc ? query.OrderByDescending(c => c.Protein)  : query.OrderBy(c => c.Protein),
-            SortBy.Fat      => desc ? query.OrderByDescending(c => c.Fat)      : query.OrderBy(c => c.Fat),
-            SortBy.Sodium   => desc ? query.OrderByDescending(c => c.Sodium)   : query.OrderBy(c => c.Sodium),
-            SortBy.Fiber    => desc ? query.OrderByDescending(c => c.Fiber)    : query.OrderBy(c => c.Fiber),
-            SortBy.Carbo    => desc ? query.OrderByDescending(c => c.Carbo)    : query.OrderBy(c => c.Carbo),
-            SortBy.Sugars   => desc ? query.OrderByDescending(c => c.Sugars)   : query.OrderBy(c => c.Sugars),
-            SortBy.Potass   => desc ? query.OrderByDescending(c => c.Potass)   : query.OrderBy(c => c.Potass),
-            SortBy.Vitamins => desc ? query.OrderByDescending(c => c.Vitamins) : query.OrderBy(c => c.Vitamins),
-            SortBy.Shelf    => desc ? query.OrderByDescending(c => c.Shelf)    : query.OrderBy(c => c.Shelf),
-            SortBy.Weight   => desc ? query.OrderByDescending(c => c.Weight)   : query.OrderBy(c => c.Weight),
-            SortBy.Cups     => desc ? query.OrderByDescending(c => c.Cups)     : query.OrderBy(c => c.Cups),
-            SortBy.Rating   => desc ? query.OrderByDescending(c => c.Rating)   : query.OrderBy(c => c.Rating),
+            SortBy.Name     => isDescending ? query.OrderByDescending(c => c.Name)     : query.OrderBy(c => c.Name),
+            SortBy.Calories => isDescending ? query.OrderByDescending(c => c.Calories) : query.OrderBy(c => c.Calories),
+            SortBy.Protein  => isDescending ? query.OrderByDescending(c => c.Protein)  : query.OrderBy(c => c.Protein),
+            SortBy.Fat      => isDescending ? query.OrderByDescending(c => c.Fat)      : query.OrderBy(c => c.Fat),
+            SortBy.Sodium   => isDescending ? query.OrderByDescending(c => c.Sodium)   : query.OrderBy(c => c.Sodium),
+            SortBy.Fiber    => isDescending ? query.OrderByDescending(c => c.Fiber)    : query.OrderBy(c => c.Fiber),
+            SortBy.Carbo    => isDescending ? query.OrderByDescending(c => c.Carbo)    : query.OrderBy(c => c.Carbo),
+            SortBy.Sugars   => isDescending ? query.OrderByDescending(c => c.Sugars)   : query.OrderBy(c => c.Sugars),
+            SortBy.Potass   => isDescending ? query.OrderByDescending(c => c.Potass)   : query.OrderBy(c => c.Potass),
+            SortBy.Vitamins => isDescending ? query.OrderByDescending(c => c.Vitamins) : query.OrderBy(c => c.Vitamins),
+            SortBy.Shelf    => isDescending ? query.OrderByDescending(c => c.Shelf)    : query.OrderBy(c => c.Shelf),
+            SortBy.Weight   => isDescending ? query.OrderByDescending(c => c.Weight)   : query.OrderBy(c => c.Weight),
+            SortBy.Cups     => isDescending ? query.OrderByDescending(c => c.Cups)     : query.OrderBy(c => c.Cups),
+            SortBy.Rating   => isDescending ? query.OrderByDescending(c => c.Rating)   : query.OrderBy(c => c.Rating),
             _               => query.OrderBy(c => c.Name)
         };
         query = ordered.ThenBy(c => c.Id);
@@ -120,11 +120,11 @@ public class CerealService(AppDbContext db) : ICerealService
         // If a soft-deleted row with the same name exists, reject the create so that an
         // editor cannot indirectly restore an admin-only resource. The caller should surface
         // this as 409 Conflict and direct the client to request an admin restore.
-        var existing = await db.Cereals
+        var hasSoftDeletedConflict = await db.Cereals
             .IgnoreQueryFilters()
             .AnyAsync(c => c.Name == request.Name && c.DeletedAt != null, cancellationToken);
 
-        if (existing)
+        if (hasSoftDeletedConflict)
             throw new SoftDeletedConflictException(request.Name);
 
         var cereal = new Cereal();
@@ -230,10 +230,10 @@ public class CerealService(AppDbContext db) : ICerealService
                         ApplyImportRow(ok.Row, existing);
                         updated++;
                     }
-                    else if (addedThisBatch.TryGetValue(name, out var inFlight))
+                    else if (addedThisBatch.TryGetValue(name, out var pendingInBatch))
                     {
                         // Duplicate name within the same file — last row wins, don't recount
-                        ApplyImportRow(ok.Row, inFlight);
+                        ApplyImportRow(ok.Row, pendingInBatch);
                     }
                     else
                     {
