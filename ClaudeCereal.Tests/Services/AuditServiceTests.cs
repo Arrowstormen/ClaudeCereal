@@ -40,11 +40,14 @@ public class AuditServiceTests : IDisposable
     [Fact]
     public async Task GetPagedAsync_ReturnsAllLogs_WithNoFilter()
     {
-        await SeedAsync([MakeLog(entityId: 11), MakeLog(entityId: 12)]);
+        await SeedAsync([MakeLog(entityId: 1101), MakeLog(entityId: 1102)]);
 
         var result = await NewService().GetPagedAsync(new AuditFilter());
 
+        // Other tests share the same database, so TotalCount may be higher than 2.
         Assert.True(result.TotalCount >= 2);
+        Assert.Contains(result.Items, l => l.EntityId == 1101);
+        Assert.Contains(result.Items, l => l.EntityId == 1102);
     }
 
     // ── EntityId filter ────────────────────────────────────────────────────────
@@ -174,5 +177,19 @@ public class AuditServiceTests : IDisposable
 
         Assert.Equal(2, result.Items.Count);
         Assert.Equal(2, result.PageSize);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_ReturnsDistinctItemsOnPage2()
+    {
+        const string actor = "page-nav-actor";
+        await SeedAsync(Enumerable.Range(1001, 5).Select(i => MakeLog(entityId: i, actor: actor)));
+
+        var page2 = await NewService().GetPagedAsync(
+            new AuditFilter(Actor: actor, Page: 2, PageSize: 2));
+
+        Assert.Equal(2, page2.Items.Count);
+        Assert.Equal(2, page2.Page);
+        Assert.Equal(5, page2.TotalCount);
     }
 }

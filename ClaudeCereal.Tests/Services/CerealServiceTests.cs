@@ -275,6 +275,61 @@ public class CerealServiceTests : IDisposable
         Assert.Equal(names.OrderBy(n => n).ToList(), names);
     }
 
+    [Fact]
+    public async Task GetFilteredAsync_SortsByNameDescending_WhenRequested()
+    {
+        await NewService().CreateAsync(Request("Sort Desc Apple"));
+        await NewService().CreateAsync(Request("Sort Desc Zucchini"));
+
+        var result = await NewService().GetFilteredAsync(
+            new CerealFilter { NameContains = "Sort Desc", SortBy = SortBy.Name, SortOrder = SortOrder.Desc });
+
+        var names = result.Items.Select(c => c.Name).ToList();
+        Assert.Equal(names.OrderByDescending(n => n).ToList(), names);
+    }
+
+    [Fact]
+    public async Task GetFilteredAsync_FiltersOnManufacturer()
+    {
+        await NewService().CreateAsync(new CerealRequest { Name = "Mfr Filter G", Mfr = Manufacturer.G });
+        await NewService().CreateAsync(new CerealRequest { Name = "Mfr Filter K", Mfr = Manufacturer.K });
+
+        var result = await NewService().GetFilteredAsync(
+            new CerealFilter { NameContains = "Mfr Filter", Manufacturer = Manufacturer.G });
+
+        Assert.Single(result.Items);
+        Assert.Equal("Mfr Filter G", result.Items[0].Name);
+    }
+
+    [Fact]
+    public async Task GetFilteredAsync_RespectsPageSizeAndReportsTotalCount()
+    {
+        for (var i = 1; i <= 5; i++)
+            await NewService().CreateAsync(Request($"Paging Test {i:D2}"));
+
+        var result = await NewService().GetFilteredAsync(
+            new CerealFilter { NameContains = "Paging Test", PageSize = 3 });
+
+        Assert.Equal(3, result.Items.Count);
+        Assert.Equal(5, result.TotalCount);
+    }
+
+    [Fact]
+    public async Task GetFilteredAsync_ReturnsDistinctItemsOnPage2()
+    {
+        for (var i = 1; i <= 5; i++)
+            await NewService().CreateAsync(Request($"Page Nav Test {i:D2}"));
+
+        var page1 = await NewService().GetFilteredAsync(
+            new CerealFilter { NameContains = "Page Nav Test", Page = 1, PageSize = 3 });
+        var page2 = await NewService().GetFilteredAsync(
+            new CerealFilter { NameContains = "Page Nav Test", Page = 2, PageSize = 3 });
+
+        Assert.Equal(3, page1.Items.Count);
+        Assert.Equal(2, page2.Items.Count);
+        Assert.Empty(page1.Items.Select(c => c.Id).Intersect(page2.Items.Select(c => c.Id)));
+    }
+
     // ── ImportAsync ────────────────────────────────────────────────────────────
 
     [Fact]
@@ -326,5 +381,37 @@ public class CerealServiceTests : IDisposable
         var result = await NewService().ImportAsync(stream, ImportFormat.Json);
 
         Assert.Equal(1, result.Inserted);
+    }
+
+    [Fact]
+    public async Task ImportAsync_Json_UpdatesExistingCereals()
+    {
+        await NewService().CreateAsync(new CerealRequest { Name = "Import JSON Update Existing", Calories = 100 });
+
+        const string json = """[{"name":"Import JSON Update Existing","calories":999}]""";
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+
+        var result = await NewService().ImportAsync(stream, ImportFormat.Json);
+
+        Assert.Equal(0, result.Inserted);
+        Assert.Equal(1, result.Updated);
+    }
+
+    [Fact]
+    public async Task ImportAsync_Csv_InsertsNewRow_WhenNameMatchesSoftDeletedRow()
+    {
+        var svc     = NewService();
+        var created = await svc.CreateAsync(Request("Import Soft Delete Test"));
+        await svc.DeleteAsync(created.Id);
+
+        const string csv = "name,calories\r\nImport Soft Delete Test,200\r\n";
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
+        // ImportAsync does not check for soft-deleted name conflicts (unlike CreateAsync);
+        // the name is not found among active rows so it is treated as a new insertion.
+        var result = await NewService().ImportAsync(stream, ImportFormat.Csv);
+
+        Assert.Equal(1, result.Inserted);
+        Assert.Equal(0, result.Updated);
     }
 }

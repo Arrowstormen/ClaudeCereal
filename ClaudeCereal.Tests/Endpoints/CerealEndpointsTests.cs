@@ -312,6 +312,37 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
         Assert.Equal(2, result.Inserted);
     }
 
+    [Fact]
+    public async Task ImportCereals_AsEditor_WithJsonFile_Returns200()
+    {
+        _factory.CerealService
+            .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Json, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ImportResult(1, 0, []));
+
+        var content = BuildJsonFile("""[{"name":"Test"}]""");
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/import", content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        _factory.CerealService.Verify(
+            s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Json, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ImportCereals_WithUnknownFormat_Returns400()
+    {
+        var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes("data"));
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        var form = new MultipartFormDataContent();
+        form.Add(byteContent, "file", "cereals.xlsx");
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/import", form);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     // ── GET /cereals/{id}/image ────────────────────────────────────────────────
 
     [Fact]
@@ -347,13 +378,19 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
     private static MultipartFormDataContent BuildCsvFile(string csvContent)
     {
-        var bytes      = Encoding.UTF8.GetBytes(csvContent);
-        var byteContent = new ByteArrayContent(bytes);
-        byteContent.Headers.ContentType =
-            new MediaTypeHeaderValue("text/csv");
-
+        var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent));
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
         var form = new MultipartFormDataContent();
         form.Add(byteContent, "file", "cereals.csv");
+        return form;
+    }
+
+    private static MultipartFormDataContent BuildJsonFile(string jsonContent)
+    {
+        var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes(jsonContent));
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        var form = new MultipartFormDataContent();
+        form.Add(byteContent, "file", "cereals.json");
         return form;
     }
 }

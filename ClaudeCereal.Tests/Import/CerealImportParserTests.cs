@@ -83,6 +83,17 @@ public class CerealImportParserTests
         Assert.Equal(90, ok.Row.Calories);
     }
 
+    [Fact]
+    public async Task ParseAsync_Csv_ReturnsErrRow_ForInvalidEnumValue()
+    {
+        const string csv = "name,mfr\r\nBad Enum Cereal,INVALID_MFR\r\n";
+
+        var rows = await CerealImportParser.ParseAsync(ToStream(csv), ImportFormat.Csv);
+
+        Assert.Single(rows);
+        Assert.IsType<ParsedRow.Err>(rows[0]);
+    }
+
     // ── JSON ───────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -142,5 +153,15 @@ public class CerealImportParserTests
         var ok = Assert.IsType<ParsedRow.Ok>(rows[0]);
         Assert.Equal(Manufacturer.G, ok.Row.Mfr);
         Assert.Equal(CerealType.H, ok.Row.Type);
+    }
+
+    [Fact]
+    public async Task ParseAsync_Json_Throws_ForInvalidEnumValue()
+    {
+        // JsonStringEnumConverter rejects unknown values — the whole parse fails
+        const string json = """[{"name":"Bad Enum","mfr":"INVALID_MFR"}]""";
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => CerealImportParser.ParseAsync(ToStream(json), ImportFormat.Json));
     }
 }
