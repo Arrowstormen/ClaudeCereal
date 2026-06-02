@@ -7,10 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ClaudeCereal.Services;
 
-public class CerealService(AppDbContext db) : ICerealService, IDisposable
+public class CerealService(AppDbContext db) : ICerealService
 {
-    public void Dispose() => db.Dispose();
-
     public async Task<PagedResult<Cereal>> GetFilteredAsync(
         CerealFilter filter, CancellationToken cancellationToken = default)
     {
