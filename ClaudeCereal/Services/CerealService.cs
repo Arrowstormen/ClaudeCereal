@@ -258,8 +258,11 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<Cereal?> RestoreAsync(int id, CancellationToken cancellationToken = default)
     {
-        // FindAsync bypasses global query filters, so this correctly finds deleted rows.
-        var cereal = await db.Cereals.FindAsync([id], cancellationToken);
+        // IgnoreQueryFilters is required: FindAsync respects the global soft-delete filter
+        // in EF Core 5+, so it would return null for deleted rows without this override.
+        var cereal = await db.Cereals
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
         if (cereal is null) return null;
 
         // Already active — the precondition for restore is not met.

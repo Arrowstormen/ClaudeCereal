@@ -88,11 +88,14 @@ if (app.Environment.IsDevelopment())
         .AllowAnonymous();
 }
 
-var csvPath = builder.Configuration["CsvPath"]
-    ?? Path.Combine(AppContext.BaseDirectory, "Data", "cereal.csv");
-
-using (var scope = app.Services.CreateScope())
+// Skip seeding during integration tests — the test host uses mocked services
+// and an in-memory database that doesn't require the CSV seed data.
+if (!app.Environment.IsEnvironment("Test"))
 {
+    var csvPath = builder.Configuration["CsvPath"]
+        ?? Path.Combine(AppContext.BaseDirectory, "Data", "cereal.csv");
+
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await CerealSeeder.SeedAsync(db, csvPath);
 }
@@ -101,3 +104,6 @@ app.MapCerealEndpoints();
 app.MapAuditEndpoints();
 
 app.Run();
+
+// Exposes the implicit Program class so WebApplicationFactory<Program> can reference it.
+public partial class Program { }

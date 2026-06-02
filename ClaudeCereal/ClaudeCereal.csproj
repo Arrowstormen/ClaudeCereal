@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="ClaudeCereal.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="Data\cereal.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
