@@ -11,5 +11,4 @@ public interface ICerealService
     Task<Cereal?>             UpdateAsync     (int id, CerealRequest request,  CancellationToken cancellationToken = default);
     Task<bool>                DeleteAsync     (int id,                        CancellationToken cancellationToken = default);
     Task<Cereal?>             RestoreAsync    (int id,                        CancellationToken cancellationToken = default);
-    Task<ImportResult>        ImportAsync     (Stream content, ImportFormat format, CancellationToken cancellationToken = default);
 }

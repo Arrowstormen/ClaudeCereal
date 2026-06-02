@@ -25,6 +25,7 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 });
 
 builder.Services.AddScoped<ICerealService, CerealService>();
+builder.Services.AddScoped<ICerealImportService, CerealImportService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
