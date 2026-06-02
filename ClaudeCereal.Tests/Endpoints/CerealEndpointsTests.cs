@@ -1,8 +1,8 @@
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using ClaudeCereal.Authentication;
 using ClaudeCereal.Exceptions;
 using ClaudeCereal.Models;
@@ -15,13 +15,6 @@ namespace ClaudeCereal.Tests.Endpoints;
 public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
 {
     private readonly TestWebApplicationFactory _factory;
-
-    // JsonSerializerOptions matching what the app registers (enums as strings)
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
 
     public CerealEndpointsTests(TestWebApplicationFactory factory)
     {
@@ -131,7 +124,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
             .ReturnsAsync(created);
 
         var response = await _factory.CreateClientWithRole(Roles.Editor)
-            .PostAsJsonAsync("/cereals", new CerealRequest { Name = "New Cereal" }, JsonOpts);
+            .PostAsJsonAsync("/cereals", new CerealRequest { Name = "New Cereal" }, TestJsonOptions.Default);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Contains("/cereals/7", response.Headers.Location?.OriginalString ?? string.Empty);
@@ -145,7 +138,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
             .ThrowsAsync(new SoftDeletedConflictException("Conflict Cereal"));
 
         var response = await _factory.CreateClientWithRole(Roles.Editor)
-            .PostAsJsonAsync("/cereals", new CerealRequest { Name = "Conflict Cereal" }, JsonOpts);
+            .PostAsJsonAsync("/cereals", new CerealRequest { Name = "Conflict Cereal" }, TestJsonOptions.Default);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -161,7 +154,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
             .ReturnsAsync(updated);
 
         var response = await _factory.CreateClientWithRole(Roles.Editor)
-            .PutAsJsonAsync("/cereals/5", new CerealRequest { Name = "Updated" }, JsonOpts);
+            .PutAsJsonAsync("/cereals/5", new CerealRequest { Name = "Updated" }, TestJsonOptions.Default);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -174,7 +167,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
             .ReturnsAsync((Cereal?)null);
 
         var response = await _factory.CreateClientWithRole(Roles.Editor)
-            .PutAsJsonAsync("/cereals/404", new CerealRequest { Name = "Ghost" }, JsonOpts);
+            .PutAsJsonAsync("/cereals/404", new CerealRequest { Name = "Ghost" }, TestJsonOptions.Default);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -187,7 +180,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
             .ThrowsAsync(new DbUpdateConcurrencyException());
 
         var response = await _factory.CreateClientWithRole(Roles.Editor)
-            .PutAsJsonAsync("/cereals/3", new CerealRequest { Name = "Stale" }, JsonOpts);
+            .PutAsJsonAsync("/cereals/3", new CerealRequest { Name = "Stale" }, TestJsonOptions.Default);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -314,7 +307,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
             .PostAsync("/cereals/import", content);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<ImportResult>(JsonOpts);
+        var result = await response.Content.ReadFromJsonAsync<ImportResult>(TestJsonOptions.Default);
         Assert.NotNull(result);
         Assert.Equal(2, result.Inserted);
     }
@@ -330,7 +323,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
             .ReturnsAsync(cereal);
 
         // ICerealImageService is NOT mocked — the real singleton is registered with an empty
-        // index (test environment has no image directory), so GetImagePath returns null.
+        // index (test environment has no image directory).
         var response = await _factory.CreateClientWithRole(Roles.Reader)
             .GetAsync("/cereals/20/image");
 
@@ -357,7 +350,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var bytes      = Encoding.UTF8.GetBytes(csvContent);
         var byteContent = new ByteArrayContent(bytes);
         byteContent.Headers.ContentType =
-            new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+            new MediaTypeHeaderValue("text/csv");
 
         var form = new MultipartFormDataContent();
         form.Add(byteContent, "file", "cereals.csv");

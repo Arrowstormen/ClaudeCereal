@@ -1,7 +1,6 @@
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Json;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using ClaudeCereal.Authentication;
 using ClaudeCereal.Models;
 using ClaudeCereal.Tests.Helpers;
@@ -12,12 +11,6 @@ namespace ClaudeCereal.Tests.Endpoints;
 public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
 {
     private readonly TestWebApplicationFactory _factory;
-
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
 
     public AuditEndpointsTests(TestWebApplicationFactory factory)
     {
@@ -88,7 +81,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
             .GetAsync("/audit");
 
         response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<PagedResult<AuditLog>>(JsonOpts);
+        var result = await response.Content.ReadFromJsonAsync<PagedResult<AuditLog>>(TestJsonOptions.Default);
 
         Assert.NotNull(result);
         Assert.Equal(1, result.TotalCount);

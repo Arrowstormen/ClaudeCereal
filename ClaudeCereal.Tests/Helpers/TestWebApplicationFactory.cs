@@ -1,3 +1,4 @@
+using System.Net.Http;
 using ClaudeCereal.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -16,7 +17,7 @@ namespace ClaudeCereal.Tests.Helpers;
 ///   <item>Replaces Basic auth with <see cref="TestAuthHandler"/> so tests control roles via headers.</item>
 /// </list>
 /// Use <see cref="CreateClientWithRole"/> or <see cref="CreateUnauthenticatedClient"/> to obtain
-/// pre-configured <see cref="System.Net.Http.HttpClient"/> instances.
+/// pre-configured <see cref="HttpClient"/> instances.
 /// Call <see cref="ResetMocks"/> (typically in each test constructor) to avoid mock bleed-through.
 /// </summary>
 public class TestWebApplicationFactory : WebApplicationFactory<Program>
@@ -30,13 +31,11 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
-            // Replace real service registrations with mocks
             services.RemoveAll<ICerealService>();
             services.RemoveAll<IAuditService>();
             services.AddSingleton(CerealService.Object);
             services.AddSingleton(AuditService.Object);
 
-            // Register the test scheme (Basic stays registered but is no longer default)
             services.AddAuthentication()
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                     TestAuthHandler.SchemeName, null);
@@ -52,7 +51,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
     }
 
     /// <summary>Creates a client that authenticates with the given single role.</summary>
-    public System.Net.Http.HttpClient CreateClientWithRole(string role)
+    public HttpClient CreateClientWithRole(string role)
     {
         var client = CreateClient();
         client.DefaultRequestHeaders.Add("X-Test-Roles", role);
@@ -60,7 +59,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
     }
 
     /// <summary>Creates a client that presents no authentication credentials.</summary>
-    public System.Net.Http.HttpClient CreateUnauthenticatedClient()
+    public HttpClient CreateUnauthenticatedClient()
     {
         var client = CreateClient();
         client.DefaultRequestHeaders.Add("X-Test-Unauthenticated", "true");

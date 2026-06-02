@@ -58,7 +58,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Csv_ToleratesmissingFields_AreNullOnRow()
+    public async Task ParseAsync_Csv_ToleratesMissingFields_AreNullOnRow()
     {
         // Row has only a name column — all nutrition fields should be null
         const string csv = "name\r\nMin Fields Cereal\r\n";

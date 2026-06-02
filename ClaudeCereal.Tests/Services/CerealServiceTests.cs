@@ -307,8 +307,7 @@ public class CerealServiceTests : IDisposable
     [Fact]
     public async Task ImportAsync_Csv_SkipsRowsWithNullName()
     {
-        // CSV has a header "calories" only — no "name" column is provided; but the
-        // actual parser requires "name", so use a row where name is empty string.
+        // Parser requires "name" — use an empty value to exercise the blank-name skip path.
         const string csv = "name,calories\r\n,110\r\n";
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
 

@@ -155,8 +155,7 @@ public class AuditServiceTests : IDisposable
         ]);
 
         var result = await NewService().GetPagedAsync(
-            new AuditFilter(EntityId: null, Action: null, Actor: null,
-                            From: older.AddSeconds(-1), To: newer.AddSeconds(+1)));
+            new AuditFilter(From: older.AddSeconds(-1), To: newer.AddSeconds(+1)));
 
         // Items should be in descending timestamp order
         var timestamps = result.Items.Select(l => l.Timestamp).ToList();
