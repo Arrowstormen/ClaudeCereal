@@ -1,5 +1,6 @@
 using ClaudeCereal.Data;
 using ClaudeCereal.Exceptions;
+using ClaudeCereal.Extensions;
 using ClaudeCereal.Import;
 using ClaudeCereal.Models;
 using Microsoft.EntityFrameworkCore;
@@ -101,21 +102,7 @@ public class CerealService(AppDbContext db) : ICerealService
         };
         query = ordered.ThenBy(c => c.Id);
 
-        int page     = Math.Max(1, filter.Page ?? 1);
-        int pageSize = Math.Clamp(filter.PageSize ?? 20, 1, 100);
-
-        var totalCount = await query.CountAsync(cancellationToken);
-        var items      = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        return new PagedResult<Cereal>(
-            items,
-            page,
-            pageSize,
-            totalCount,
-            (int)Math.Ceiling(totalCount / (double)pageSize));
+        return await query.ToPagedResultAsync(filter.Page, filter.PageSize, cancellationToken);
     }
 
     // Global query filter handles the DeletedAt == null predicate automatically.

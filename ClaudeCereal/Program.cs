@@ -9,13 +9,23 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
- var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddHttpContextAccessor();
+
+// AuditInterceptor is scoped so it can access IHttpContextAccessor (per-request state)
+// and safely hold mutable fields (_pendingEntries, _transaction) without thread-safety concerns.
+builder.Services.AddScoped<AuditInterceptor>();
+
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+{
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? "Data Source=cereals.db"));
+        ?? "Data Source=cereals.db");
+    options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>());
+});
 
 builder.Services.AddScoped<ICerealService, CerealService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -88,5 +98,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapCerealEndpoints();
+app.MapAuditEndpoints();
 
 app.Run();
