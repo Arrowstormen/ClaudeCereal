@@ -115,8 +115,8 @@ public static class CerealEndpoints
         {
             if (contentType.Contains("json", StringComparison.OrdinalIgnoreCase)) return ImportFormat.Json;
             if (contentType.Contains("csv",  StringComparison.OrdinalIgnoreCase)) return ImportFormat.Csv;
-            // browsers often send text/plain for .csv files dragged in
-            if (contentType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)) return ImportFormat.Csv;
+            // Browsers often send text/plain for .csv files dragged into a file picker
+            if (contentType.Equals("text/plain", StringComparison.OrdinalIgnoreCase)) return ImportFormat.Csv;
         }
         return Path.GetExtension(fileName)?.ToLowerInvariant() switch
         {
