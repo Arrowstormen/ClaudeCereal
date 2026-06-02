@@ -97,7 +97,7 @@ public static class CerealEndpoints
             return Results.File(imagePath, contentType ?? "application/octet-stream");
         });
 
-        group.MapPost("/import", async (IFormFile? file, ICerealService service, CancellationToken cancellationToken) =>
+        group.MapPost("/import", async (IFormFile? file, ICerealImportService importService, CancellationToken cancellationToken) =>
         {
             if (file is null)
                 return Results.BadRequest("A file is required.");
@@ -111,7 +111,7 @@ public static class CerealEndpoints
             try
             {
                 using var stream = file.OpenReadStream();
-                var result = await service.ImportAsync(stream, format.Value, cancellationToken);
+                var result = await importService.ImportAsync(stream, format.Value, cancellationToken);
                 return Results.Ok(result);
             }
             catch (InvalidDataException ex)
