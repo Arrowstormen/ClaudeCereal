@@ -4,12 +4,12 @@ namespace ClaudeCereal.Services;
 
 public interface ICerealService
 {
-    Task<PagedResult<Cereal>> GetFilteredAsync(CerealFilter filter);
-    Task<Cereal?> GetByIdAsync(int id);
-    Task<Cereal> CreateAsync(CerealRequest request);
-    Task<Cereal?> UpdateAsync(int id, CerealRequest request);
-    Task<bool> DeleteAsync(int id);
-    Task<ImportResult> ImportAsync(Stream content, ImportFormat format);
-    Task<Cereal?> RestoreAsync(int id);
-    Task<bool> IsDeletedAsync(int id);
+    Task<PagedResult<Cereal>> GetFilteredAsync(CerealFilter filter,          CancellationToken cancellationToken = default);
+    Task<Cereal?>             GetByIdAsync    (int id,                        CancellationToken cancellationToken = default);
+    Task<bool>                IsDeletedAsync  (int id,                        CancellationToken cancellationToken = default);
+    Task<Cereal>              CreateAsync     (CerealRequest request,          CancellationToken cancellationToken = default);
+    Task<Cereal?>             UpdateAsync     (int id, CerealRequest request,  CancellationToken cancellationToken = default);
+    Task<bool>                DeleteAsync     (int id,                        CancellationToken cancellationToken = default);
+    Task<Cereal?>             RestoreAsync    (int id,                        CancellationToken cancellationToken = default);
+    Task<ImportResult>        ImportAsync     (Stream content, ImportFormat format, CancellationToken cancellationToken = default);
 }
