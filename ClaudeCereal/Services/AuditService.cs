@@ -5,8 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ClaudeCereal.Services;
 
-public class AuditService(AppDbContext db) : IAuditService
+public class AuditService(AppDbContext db) : IAuditService, IDisposable
 {
+    public void Dispose() => db.Dispose();
+
     public async Task<PagedResult<AuditLog>> GetPagedAsync(
         AuditFilter       filter,
         CancellationToken cancellationToken = default)
