@@ -18,17 +18,17 @@ internal static class PaginationExtensions
         int?              pageSize,
         CancellationToken cancellationToken = default)
     {
-        int p  = Math.Max(1, page ?? 1);
-        int ps = Math.Clamp(pageSize ?? DefaultPageSize, 1, MaxPageSize);
+        int normalizedPage     = Math.Max(1, page ?? 1);
+        int normalizedPageSize = Math.Clamp(pageSize ?? DefaultPageSize, 1, MaxPageSize);
 
         var total = await query.CountAsync(cancellationToken);
         var items = await query
-            .Skip((p - 1) * ps)
-            .Take(ps)
+            .Skip((normalizedPage - 1) * normalizedPageSize)
+            .Take(normalizedPageSize)
             .ToListAsync(cancellationToken);
 
         return new PagedResult<T>(
-            items, p, ps, total,
-            (int)Math.Ceiling(total / (double)ps));
+            items, normalizedPage, normalizedPageSize, total,
+            (int)Math.Ceiling(total / (double)normalizedPageSize));
     }
 }
