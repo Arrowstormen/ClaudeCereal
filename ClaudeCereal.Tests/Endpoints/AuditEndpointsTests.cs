@@ -21,7 +21,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── Authorization ──────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetAudit_Unauthenticated_Returns401()
+    public async Task GetAudit_WhenUnauthenticated_ShouldReturn401()
     {
         var response = await _factory.CreateUnauthenticatedClient()
             .GetAsync("/audit");
@@ -30,7 +30,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task GetAudit_AsReader_Returns403()
+    public async Task GetAudit_WhenCallerIsReader_ShouldReturn403()
     {
         var response = await _factory.CreateClientWithRole(Roles.Reader)
             .GetAsync("/audit");
@@ -39,7 +39,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task GetAudit_AsEditor_Returns403()
+    public async Task GetAudit_WhenCallerIsEditor_ShouldReturn403()
     {
         var response = await _factory.CreateClientWithRole(Roles.Editor)
             .GetAsync("/audit");
@@ -48,7 +48,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task GetAudit_AsAdmin_Returns200()
+    public async Task GetAudit_WhenCallerIsAdmin_ShouldReturn200()
     {
         _factory.AuditService
             .Setup(s => s.GetPagedAsync(It.IsAny<AuditFilter>(), It.IsAny<CancellationToken>()))
@@ -63,7 +63,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── Response shape ─────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetAudit_AsAdmin_ReturnsPagedResult()
+    public async Task GetAudit_WhenCallerIsAdmin_ShouldReturnPagedResultInBody()
     {
         var log = new AuditLog
         {
@@ -93,7 +93,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── Filter query parameters ────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetAudit_PassesEntityIdFilter_ToService()
+    public async Task GetAudit_WhenEntityIdQueryParamIsProvided_ShouldPassFilterToService()
     {
         _factory.AuditService
             .Setup(s => s.GetPagedAsync(It.IsAny<AuditFilter>(), It.IsAny<CancellationToken>()))
@@ -110,7 +110,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task GetAudit_PassesActionFilter_ToService()
+    public async Task GetAudit_WhenActionQueryParamIsProvided_ShouldPassFilterToService()
     {
         _factory.AuditService
             .Setup(s => s.GetPagedAsync(It.IsAny<AuditFilter>(), It.IsAny<CancellationToken>()))
@@ -127,7 +127,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task GetAudit_PassesPaginationParams_ToService()
+    public async Task GetAudit_WhenPaginationParamsAreProvided_ShouldPassThemToService()
     {
         _factory.AuditService
             .Setup(s => s.GetPagedAsync(It.IsAny<AuditFilter>(), It.IsAny<CancellationToken>()))
@@ -146,7 +146,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── Role hierarchy ─────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetAudit_AdminRoleGrantsAccess_ViaHierarchyTransformation()
+    public async Task GetAudit_WhenRoleHierarchyTransformIsApplied_ShouldPreserveAdminAccess()
     {
         // Admin should satisfy AdminOnly policy (trivially), but this test explicitly
         // confirms the hierarchy transformation doesn't break the Admin claim.

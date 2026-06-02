@@ -25,7 +25,7 @@ public class CerealServiceTests : IDisposable
     // ── GetByIdAsync ───────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetByIdAsync_ReturnsCereal_WhenFound()
+    public async Task GetByIdAsync_WhenFound_ShouldReturnCereal()
     {
         var created = await NewService().CreateAsync(Request("Cheerios Get"));
 
@@ -36,7 +36,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetByIdAsync_ReturnsNull_WhenIdNotFound()
+    public async Task GetByIdAsync_WhenIdDoesNotExist_ShouldReturnNull()
     {
         var result = await NewService().GetByIdAsync(99999);
 
@@ -44,7 +44,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetByIdAsync_ReturnsNull_ForSoftDeletedCereal()
+    public async Task GetByIdAsync_WhenCerealIsSoftDeleted_ShouldReturnNull()
     {
         var svc     = NewService();
         var created = await svc.CreateAsync(Request("Soft Get Test"));
@@ -58,7 +58,7 @@ public class CerealServiceTests : IDisposable
     // ── IsDeletedAsync ─────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task IsDeletedAsync_ReturnsFalse_ForActiveRow()
+    public async Task IsDeletedAsync_WhenCerealIsActive_ShouldReturnFalse()
     {
         var created = await NewService().CreateAsync(Request("IsDeleted Active"));
 
@@ -66,7 +66,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task IsDeletedAsync_ReturnsTrue_AfterSoftDelete()
+    public async Task IsDeletedAsync_WhenCerealIsSoftDeleted_ShouldReturnTrue()
     {
         var svc     = NewService();
         var created = await svc.CreateAsync(Request("IsDeleted Deleted"));
@@ -76,7 +76,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task IsDeletedAsync_ReturnsFalse_WhenIdNotFound()
+    public async Task IsDeletedAsync_WhenIdDoesNotExist_ShouldReturnFalse()
     {
         Assert.False(await NewService().IsDeletedAsync(99999));
     }
@@ -84,7 +84,7 @@ public class CerealServiceTests : IDisposable
     // ── CreateAsync ────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task CreateAsync_AssignsId_AndPersistsCereal()
+    public async Task CreateAsync_WhenRequestIsValid_ShouldPersistCerealAndAssignId()
     {
         var cereal = await NewService().CreateAsync(Request("Rice Krispies Create"));
 
@@ -94,7 +94,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateAsync_Throws_WhenNameMatchesSoftDeletedRow()
+    public async Task CreateAsync_WhenNameMatchesSoftDeletedRow_ShouldThrowSoftDeletedConflictException()
     {
         var svc     = NewService();
         var created = await svc.CreateAsync(Request("Conflict Cereal Create"));
@@ -107,7 +107,7 @@ public class CerealServiceTests : IDisposable
     // ── UpdateAsync ────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task UpdateAsync_ReturnsUpdatedCereal()
+    public async Task UpdateAsync_WhenCerealExists_ShouldReturnUpdatedCereal()
     {
         var created = await NewService().CreateAsync(Request("Update Original"));
 
@@ -120,7 +120,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateAsync_IncrementsVersion()
+    public async Task UpdateAsync_WhenCerealExists_ShouldIncrementVersion()
     {
         var created = await NewService().CreateAsync(Request("Version Bump"));
         var originalVersion = created.Version;
@@ -133,7 +133,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateAsync_ReturnsNull_WhenNotFound()
+    public async Task UpdateAsync_WhenIdDoesNotExist_ShouldReturnNull()
     {
         var result = await NewService().UpdateAsync(99999, Request("Ghost Update"));
 
@@ -141,7 +141,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateAsync_Throws_OnStaleVersion()
+    public async Task UpdateAsync_WhenVersionIsStale_ShouldThrowDbUpdateConcurrencyException()
     {
         var created = await NewService().CreateAsync(Request("Stale Version"));
 
@@ -155,7 +155,7 @@ public class CerealServiceTests : IDisposable
     // ── DeleteAsync ────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task DeleteAsync_ReturnsTrue_AndSoftDeletes()
+    public async Task DeleteAsync_WhenCerealExists_ShouldSoftDeleteAndReturnTrue()
     {
         var created = await NewService().CreateAsync(Request("Delete Me"));
 
@@ -172,7 +172,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteAsync_ReturnsFalse_WhenNotFound()
+    public async Task DeleteAsync_WhenIdDoesNotExist_ShouldReturnFalse()
     {
         Assert.False(await NewService().DeleteAsync(99999));
     }
@@ -180,7 +180,7 @@ public class CerealServiceTests : IDisposable
     // ── RestoreAsync ───────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task RestoreAsync_ClearsDeletedAt_AndReturnsCereal()
+    public async Task RestoreAsync_WhenCerealIsSoftDeleted_ShouldClearDeletedAtAndReturnCereal()
     {
         var svc     = NewService();
         var created = await svc.CreateAsync(Request("Restore Me"));
@@ -193,13 +193,13 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RestoreAsync_ReturnsNull_WhenIdNotFound()
+    public async Task RestoreAsync_WhenIdDoesNotExist_ShouldReturnNull()
     {
         Assert.Null(await NewService().RestoreAsync(99999));
     }
 
     [Fact]
-    public async Task RestoreAsync_Throws_WhenCerealIsAlreadyActive()
+    public async Task RestoreAsync_WhenCerealIsAlreadyActive_ShouldThrowCerealAlreadyActiveException()
     {
         var created = await NewService().CreateAsync(Request("Already Active Restore"));
 
@@ -210,7 +210,7 @@ public class CerealServiceTests : IDisposable
     // ── GetFilteredAsync ───────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetFilteredAsync_ReturnsOnlyActiveRows_ByDefault()
+    public async Task GetFilteredAsync_WhenIncludeDeletedIsNotSet_ShouldReturnOnlyActiveRows()
     {
         var svc     = NewService();
         var created = await svc.CreateAsync(Request("Filter Soft Deleted Exclusion"));
@@ -223,7 +223,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetFilteredAsync_IncludesSoftDeleted_WhenRequested()
+    public async Task GetFilteredAsync_WhenIncludeDeletedIsTrue_ShouldIncludeSoftDeletedRows()
     {
         var svc     = NewService();
         var created = await svc.CreateAsync(Request("Filter Include Deleted"));
@@ -236,7 +236,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetFilteredAsync_FiltersOnNameContains()
+    public async Task GetFilteredAsync_WhenNameContainsIsSet_ShouldFilterByName()
     {
         await NewService().CreateAsync(Request("NameFilter UniqueXYZ123"));
         await NewService().CreateAsync(Request("NameFilter OtherABC456"));
@@ -249,7 +249,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetFilteredAsync_FiltersOnCalorieRange()
+    public async Task GetFilteredAsync_WhenCalorieRangeIsSet_ShouldFilterByCalories()
     {
         await NewService().CreateAsync(new CerealRequest { Name = "LowCal FilterTest",  Calories = 50 });
         await NewService().CreateAsync(new CerealRequest { Name = "HighCal FilterTest", Calories = 200 });
@@ -262,7 +262,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetFilteredAsync_SortsByNameAscending_ByDefault()
+    public async Task GetFilteredAsync_WhenNoSortOrderIsSpecified_ShouldSortByNameAscending()
     {
         await NewService().CreateAsync(Request("Sort Zucchini"));
         await NewService().CreateAsync(Request("Sort Apple"));
@@ -276,7 +276,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetFilteredAsync_SortsByNameDescending_WhenRequested()
+    public async Task GetFilteredAsync_WhenSortOrderIsDescending_ShouldSortByNameDescending()
     {
         await NewService().CreateAsync(Request("Sort Desc Apple"));
         await NewService().CreateAsync(Request("Sort Desc Zucchini"));
@@ -289,7 +289,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetFilteredAsync_FiltersOnManufacturer()
+    public async Task GetFilteredAsync_WhenManufacturerIsSet_ShouldFilterByManufacturer()
     {
         await NewService().CreateAsync(new CerealRequest { Name = "Mfr Filter G", Mfr = Manufacturer.G });
         await NewService().CreateAsync(new CerealRequest { Name = "Mfr Filter K", Mfr = Manufacturer.K });
@@ -302,7 +302,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetFilteredAsync_RespectsPageSizeAndReportsTotalCount()
+    public async Task GetFilteredAsync_WhenPageSizeIsSet_ShouldLimitItemsAndReportTotalCount()
     {
         for (var i = 1; i <= 5; i++)
             await NewService().CreateAsync(Request($"Paging Test {i:D2}"));
@@ -315,7 +315,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetFilteredAsync_ReturnsDistinctItemsOnPage2()
+    public async Task GetFilteredAsync_WhenPageIsTwo_ShouldReturnSecondPageOfItems()
     {
         for (var i = 1; i <= 5; i++)
             await NewService().CreateAsync(Request($"Page Nav Test {i:D2}"));
@@ -333,7 +333,7 @@ public class CerealServiceTests : IDisposable
     // ── ImportAsync ────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ImportAsync_Csv_InsertsNewCereals()
+    public async Task ImportAsync_WhenCsvContainsNewCereals_ShouldInsertAll()
     {
         const string csv = "name,calories\r\nImport New A,120\r\nImport New B,140\r\n";
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
@@ -346,7 +346,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ImportAsync_Csv_UpdatesExistingCereals()
+    public async Task ImportAsync_WhenCsvContainsExistingCerealName_ShouldUpdateExisting()
     {
         await NewService().CreateAsync(new CerealRequest { Name = "Import Update Existing", Calories = 100 });
 
@@ -360,7 +360,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ImportAsync_Csv_SkipsRowsWithNullName()
+    public async Task ImportAsync_WhenCsvRowHasEmptyName_ShouldSkipRow()
     {
         // Parser requires "name" — use an empty value to exercise the blank-name skip path.
         const string csv = "name,calories\r\n,110\r\n";
@@ -373,7 +373,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ImportAsync_Json_InsertsNewCereals()
+    public async Task ImportAsync_WhenJsonContainsNewCereals_ShouldInsertAll()
     {
         const string json = """[{"name":"Import JSON Cereal","calories":120}]""";
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
@@ -384,7 +384,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ImportAsync_Json_UpdatesExistingCereals()
+    public async Task ImportAsync_WhenJsonContainsExistingCerealName_ShouldUpdateExisting()
     {
         await NewService().CreateAsync(new CerealRequest { Name = "Import JSON Update Existing", Calories = 100 });
 
@@ -398,7 +398,7 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ImportAsync_Csv_InsertsNewRow_WhenNameMatchesSoftDeletedRow()
+    public async Task ImportAsync_WhenCsvNameMatchesSoftDeletedRow_ShouldInsertNewRow()
     {
         var svc     = NewService();
         var created = await svc.CreateAsync(Request("Import Soft Delete Test"));

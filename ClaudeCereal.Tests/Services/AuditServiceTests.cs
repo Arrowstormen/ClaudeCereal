@@ -38,7 +38,7 @@ public class AuditServiceTests : IDisposable
     // ── No filter ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetPagedAsync_ReturnsAllLogs_WithNoFilter()
+    public async Task GetPagedAsync_WhenNoFilterIsApplied_ShouldReturnAllLogs()
     {
         await SeedAsync([MakeLog(entityId: 1101), MakeLog(entityId: 1102)]);
 
@@ -53,7 +53,7 @@ public class AuditServiceTests : IDisposable
     // ── EntityId filter ────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetPagedAsync_FiltersOnEntityId()
+    public async Task GetPagedAsync_WhenEntityIdIsSet_ShouldFilterByEntityId()
     {
         await SeedAsync([
             MakeLog(entityId: 201, actor: "alice"),
@@ -68,7 +68,7 @@ public class AuditServiceTests : IDisposable
     // ── Action filter ──────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetPagedAsync_FiltersOnAction()
+    public async Task GetPagedAsync_WhenActionIsSet_ShouldFilterByAction()
     {
         await SeedAsync([
             MakeLog(entityId: 301, action: AuditAction.Created),
@@ -84,7 +84,7 @@ public class AuditServiceTests : IDisposable
     // ── Actor filter ───────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetPagedAsync_FiltersOnActor()
+    public async Task GetPagedAsync_WhenActorIsSet_ShouldFilterByActor()
     {
         const string uniqueActor = "actor-unique-xyz";
         await SeedAsync([
@@ -101,7 +101,7 @@ public class AuditServiceTests : IDisposable
     // ── CorrelationId filter ───────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetPagedAsync_FiltersOnCorrelationId()
+    public async Task GetPagedAsync_WhenCorrelationIdIsSet_ShouldFilterByCorrelationId()
     {
         const string corrId = "corr-unique-abc";
         await SeedAsync([
@@ -118,7 +118,7 @@ public class AuditServiceTests : IDisposable
     // ── Date range filter ──────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetPagedAsync_FiltersOnFromTimestamp()
+    public async Task GetPagedAsync_WhenFromTimestampIsSet_ShouldExcludeLogsBeforeCutoff()
     {
         var cutoff = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         await SeedAsync([
@@ -132,7 +132,7 @@ public class AuditServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPagedAsync_FiltersOnToTimestamp()
+    public async Task GetPagedAsync_WhenToTimestampIsSet_ShouldExcludeLogsAfterCutoff()
     {
         var cutoff = new DateTime(2030, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         await SeedAsync([
@@ -148,7 +148,7 @@ public class AuditServiceTests : IDisposable
     // ── Sort order ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetPagedAsync_ReturnsMostRecentFirst()
+    public async Task GetPagedAsync_WhenLogsHaveDifferentTimestamps_ShouldReturnMostRecentFirst()
     {
         var older = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var newer = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -168,7 +168,7 @@ public class AuditServiceTests : IDisposable
     // ── Pagination ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetPagedAsync_RespectsPageSize()
+    public async Task GetPagedAsync_WhenPageSizeIsSet_ShouldLimitItemCount()
     {
         await SeedAsync(Enumerable.Range(901, 5).Select(i => MakeLog(entityId: i)));
 
@@ -180,7 +180,7 @@ public class AuditServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPagedAsync_ReturnsDistinctItemsOnPage2()
+    public async Task GetPagedAsync_WhenPageIsTwo_ShouldReturnSecondPageOfItems()
     {
         const string actor = "page-nav-actor";
         await SeedAsync(Enumerable.Range(1001, 5).Select(i => MakeLog(entityId: i, actor: actor)));

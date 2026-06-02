@@ -12,7 +12,7 @@ public class CerealImportParserTests
     // ── CSV ────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ParseAsync_Csv_ParsesAllRows()
+    public async Task ParseAsync_WhenCsvHasValidRows_ShouldReturnAllParsedRows()
     {
         const string csv = "name,calories\r\nCheerios,110\r\nFroot Loops,130\r\n";
 
@@ -29,7 +29,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Csv_ReturnsEmptyList_ForEmptyStream()
+    public async Task ParseAsync_WhenCsvStreamIsEmpty_ShouldReturnEmptyList()
     {
         var rows = await CerealImportParser.ParseAsync(ToStream(""), ImportFormat.Csv);
 
@@ -37,7 +37,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Csv_Throws_WhenNameColumnIsMissing()
+    public async Task ParseAsync_WhenCsvIsMissingNameColumn_ShouldThrowInvalidDataException()
     {
         const string csv = "calories,protein\r\n110,3\r\n";
 
@@ -46,7 +46,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Csv_ParsesEnumFieldsCaseInsensitively()
+    public async Task ParseAsync_WhenCsvEnumValuesAreMixedCase_ShouldParseThem()
     {
         const string csv = "name,mfr,type\r\nTest Cereal,G,H\r\n";
 
@@ -58,7 +58,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Csv_ToleratesMissingFields_AreNullOnRow()
+    public async Task ParseAsync_WhenCsvRowHasMissingOptionalFields_ShouldSetThemToNull()
     {
         // Row has only a name column — all nutrition fields should be null
         const string csv = "name\r\nMin Fields Cereal\r\n";
@@ -72,7 +72,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Csv_IsHeaderCaseInsensitive()
+    public async Task ParseAsync_WhenCsvHeadersAreUpperCase_ShouldStillParseCorrectly()
     {
         const string csv = "NAME,CALORIES\r\nCase Insensitive,90\r\n";
 
@@ -84,7 +84,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Csv_ReturnsErrRow_ForInvalidEnumValue()
+    public async Task ParseAsync_WhenCsvRowHasInvalidEnumValue_ShouldReturnErrRow()
     {
         const string csv = "name,mfr\r\nBad Enum Cereal,INVALID_MFR\r\n";
 
@@ -97,7 +97,7 @@ public class CerealImportParserTests
     // ── JSON ───────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ParseAsync_Json_ParsesAllRows()
+    public async Task ParseAsync_WhenJsonArrayHasValidObjects_ShouldReturnAllParsedRows()
     {
         const string json = """
             [
@@ -114,7 +114,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Json_ReturnsEmptyList_ForEmptyArray()
+    public async Task ParseAsync_WhenJsonArrayIsEmpty_ShouldReturnEmptyList()
     {
         var rows = await CerealImportParser.ParseAsync(ToStream("[]"), ImportFormat.Json);
 
@@ -122,7 +122,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Json_Returns_ErrRow_ForNullEntry()
+    public async Task ParseAsync_WhenJsonArrayContainsNullEntry_ShouldReturnErrRow()
     {
         const string json = """[{"name":"Valid"},null]""";
 
@@ -135,7 +135,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Json_Throws_OnMalformedJson()
+    public async Task ParseAsync_WhenJsonIsMalformed_ShouldThrowInvalidDataException()
     {
         const string json = "{ definitely not json }";
 
@@ -144,7 +144,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Json_ParsesEnumFields()
+    public async Task ParseAsync_WhenJsonContainsEnumFields_ShouldParseThem()
     {
         const string json = """[{"name":"Enum Test","mfr":"G","type":"H"}]""";
 
@@ -156,7 +156,7 @@ public class CerealImportParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_Json_Throws_ForInvalidEnumValue()
+    public async Task ParseAsync_WhenJsonContainsInvalidEnumValue_ShouldThrowInvalidDataException()
     {
         // JsonStringEnumConverter rejects unknown values — the whole parse fails
         const string json = """[{"name":"Bad Enum","mfr":"INVALID_MFR"}]""";
