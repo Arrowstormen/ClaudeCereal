@@ -71,10 +71,18 @@ public static class CerealEndpoints
             .RequireAuthorization(Policies.AdminOnly);
 
         group.MapPost("/{id:int}/restore", async (int id, ICerealService service, CancellationToken cancellationToken) =>
-            await service.RestoreAsync(id, cancellationToken) is Cereal cereal
-                ? Results.Ok(cereal)
-                : Results.NotFound())
-            .RequireAuthorization(Policies.AdminOnly);
+        {
+            try
+            {
+                return await service.RestoreAsync(id, cancellationToken) is Cereal cereal
+                    ? Results.Ok(cereal)
+                    : Results.NotFound();
+            }
+            catch (CerealAlreadyActiveException ex)
+            {
+                return Results.Conflict(ex.Message);
+            }
+        }).RequireAuthorization(Policies.AdminOnly);
 
         group.MapGet("/{id:int}/image", async (
             int id, ICerealService service, ICerealImageService imageService, CancellationToken cancellationToken) =>

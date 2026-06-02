@@ -275,9 +275,9 @@ public class CerealService(AppDbContext db) : ICerealService
         var cereal = await db.Cereals.FindAsync([id], cancellationToken);
         if (cereal is null) return null;
 
-        // Already active — return the current row without an unnecessary write or
-        // audit entry. The operation is idempotent: callers receive 200 either way.
-        if (cereal.DeletedAt is null) return cereal;
+        // Already active — the precondition for restore is not met.
+        // Throw so the caller can surface this as 409 Conflict.
+        if (cereal.DeletedAt is null) throw new CerealAlreadyActiveException(id);
 
         cereal.DeletedAt = null;
         await db.SaveChangesAsync(CancellationToken.None);
