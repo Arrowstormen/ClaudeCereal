@@ -262,6 +262,19 @@ public class CerealServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetFilteredAsync_WhenRatingRangeIsSet_ShouldFilterByRating()
+    {
+        await NewService().CreateAsync(new CerealRequest { Name = "Low Rating Filter",  Rating = 20.0 });
+        await NewService().CreateAsync(new CerealRequest { Name = "High Rating Filter", Rating = 80.0 });
+
+        var result = await NewService().GetFilteredAsync(
+            new CerealFilter { NameContains = "Rating Filter", MinRating = 50.0, MaxRating = 100.0 });
+
+        Assert.Single(result.Items);
+        Assert.Equal("High Rating Filter", result.Items[0].Name);
+    }
+
+    [Fact]
     public async Task GetFilteredAsync_WhenNoSortOrderIsSpecified_ShouldSortByNameAscending()
     {
         await NewService().CreateAsync(Request("Sort Zucchini"));
@@ -286,6 +299,19 @@ public class CerealServiceTests : IDisposable
 
         var names = result.Items.Select(c => c.Name).ToList();
         Assert.Equal(names.OrderByDescending(n => n).ToList(), names);
+    }
+
+    [Fact]
+    public async Task GetFilteredAsync_WhenSortByCaloriesDescending_ShouldSortByCalories()
+    {
+        await NewService().CreateAsync(new CerealRequest { Name = "Calories Sort Low",  Calories = 50 });
+        await NewService().CreateAsync(new CerealRequest { Name = "Calories Sort High", Calories = 300 });
+
+        var result = await NewService().GetFilteredAsync(
+            new CerealFilter { NameContains = "Calories Sort", SortBy = SortBy.Calories, SortOrder = SortOrder.Desc });
+
+        Assert.Equal(300, result.Items[0].Calories);
+        Assert.Equal(50,  result.Items[1].Calories);
     }
 
     [Fact]
@@ -409,6 +435,43 @@ public class CerealServiceTests : IDisposable
 
         // ImportAsync does not check for soft-deleted name conflicts (unlike CreateAsync);
         // the name is not found among active rows so it is treated as a new insertion.
+        var result = await NewService().ImportAsync(stream, ImportFormat.Csv);
+
+        Assert.Equal(1, result.Inserted);
+        Assert.Equal(0, result.Updated);
+    }
+
+    [Fact]
+    public async Task ImportAsync_WhenStreamIsEmpty_ShouldReturnEmptyResult()
+    {
+        await using var stream = new MemoryStream();
+
+        var result = await NewService().ImportAsync(stream, ImportFormat.Csv);
+
+        Assert.Equal(0, result.Inserted);
+        Assert.Equal(0, result.Updated);
+        Assert.Empty(result.Skipped);
+    }
+
+    [Fact]
+    public async Task ImportAsync_WhenCsvRowCausesParseError_ShouldSkipRow()
+    {
+        const string csv = "name,mfr\r\nParse Error Test,INVALID_MFR\r\n";
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
+        var result = await NewService().ImportAsync(stream, ImportFormat.Csv);
+
+        Assert.Equal(0, result.Inserted);
+        Assert.Equal(0, result.Updated);
+        Assert.Single(result.Skipped);
+    }
+
+    [Fact]
+    public async Task ImportAsync_WhenCsvContainsDuplicateNames_ShouldCountOnceAsInserted()
+    {
+        const string csv = "name,calories\r\nDuplicate Import,100\r\nDuplicate Import,200\r\n";
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
         var result = await NewService().ImportAsync(stream, ImportFormat.Csv);
 
         Assert.Equal(1, result.Inserted);

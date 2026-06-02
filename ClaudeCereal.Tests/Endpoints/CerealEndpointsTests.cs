@@ -330,6 +330,50 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Cereals_Import_CsvFileExtension_RoutesToCsvImport()
+    {
+        _factory.CerealService
+            .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Csv, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ImportResult(1, 0, []));
+
+        // Content-Type is generic — format must be inferred from the .csv extension
+        var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes("name\r\nExt Test\r\n"));
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        var form = new MultipartFormDataContent();
+        form.Add(byteContent, "file", "cereals.csv");
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/import", form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        _factory.CerealService.Verify(
+            s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Csv, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Cereals_Import_JsonFileExtension_RoutesToJsonImport()
+    {
+        _factory.CerealService
+            .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Json, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ImportResult(1, 0, []));
+
+        // Content-Type is generic — format must be inferred from the .json extension
+        var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes("""[{"name":"Ext Test"}]"""));
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        var form = new MultipartFormDataContent();
+        form.Add(byteContent, "file", "cereals.json");
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/import", form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        _factory.CerealService.Verify(
+            s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Json, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task Cereals_Import_UnknownFormat_Returns400()
     {
         var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes("data"));
