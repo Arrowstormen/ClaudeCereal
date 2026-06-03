@@ -9,6 +9,9 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write   # required by dorny/test-reporter to post PR annotations
 
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +32,9 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
+      - name: Check for vulnerable packages
+        run: dotnet list package --vulnerable --include-transitive
+
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
@@ -40,9 +46,22 @@ jobs:
           --verbosity normal
           --collect:"XPlat Code Coverage"
           --results-directory coverage
+          --logger "trx;LogFileName=test-results.trx"
+          --
+          DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Threshold=75
+          DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ThresholdType=line
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: xUnit Results
+          path: coverage/**/*.trx
+          reporter: dotnet-trx
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: coverage
           path: coverage/**/coverage.cobertura.xml
