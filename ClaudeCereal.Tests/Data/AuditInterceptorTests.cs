@@ -37,16 +37,18 @@ public class AuditInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_Creates_AuditLog_OnInsert()
     {
+        // Arrange
         var interceptor = MakeInterceptor("alice");
         await using var db = _factory.CreateContextWithInterceptor(interceptor);
-        var svc = new CerealService(db);
 
-        var cereal = await svc.CreateAsync(new CerealRequest { Name = "Interceptor Create Test" });
+        // Act
+        var cereal = await new CerealService(db)
+            .CreateAsync(new CerealRequest { Name = "Interceptor Create Test" });
 
+        // Assert
         await using var readDb = _factory.CreateContext();
         var log = await readDb.AuditLogs
             .FirstOrDefaultAsync(l => l.EntityId == cereal.Id && l.Action == AuditAction.Created);
-
         Assert.NotNull(log);
         Assert.Equal("alice", log.Actor);
         Assert.Equal("Interceptor Create Test", log.EntityName);
@@ -55,17 +57,18 @@ public class AuditInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_CapturesFieldChanges_OnCreate()
     {
+        // Arrange
         var interceptor = MakeInterceptor();
         await using var db = _factory.CreateContextWithInterceptor(interceptor);
-        var svc = new CerealService(db);
 
-        var cereal = await svc.CreateAsync(
-            new CerealRequest { Name = "Field Changes Test", Calories = 120 });
+        // Act
+        var cereal = await new CerealService(db)
+            .CreateAsync(new CerealRequest { Name = "Field Changes Test", Calories = 120 });
 
+        // Assert
         await using var readDb = _factory.CreateContext();
         var log = await readDb.AuditLogs
             .FirstOrDefaultAsync(l => l.EntityId == cereal.Id && l.Action == AuditAction.Created);
-
         Assert.NotNull(log);
         Assert.Contains(log.Changes, c => c.Field == "Name"     && c.NewValue == "Field Changes Test");
         Assert.Contains(log.Changes, c => c.Field == "Calories" && c.NewValue == "120");
@@ -76,23 +79,22 @@ public class AuditInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_Creates_AuditLog_OnUpdate()
     {
-        var interceptor = MakeInterceptor("bob");
-
-        // Create without interceptor so we have a clean starting row
+        // Arrange — create without interceptor so no spurious Created log is written
         await using var setupDb = _factory.CreateContext();
         var cereal = new Cereal { Name = "Interceptor Update Test" };
         setupDb.Cereals.Add(cereal);
         await setupDb.SaveChangesAsync();
 
+        // Act
+        var interceptor = MakeInterceptor("bob");
         await using var updateDb = _factory.CreateContextWithInterceptor(interceptor);
-        var svc     = new CerealService(updateDb);
-        var request = new CerealRequest { Name = "Interceptor Update Test Renamed", Version = cereal.Version };
-        await svc.UpdateAsync(cereal.Id, request);
+        await new CerealService(updateDb)
+            .UpdateAsync(cereal.Id, new CerealRequest { Name = "Interceptor Update Test Renamed", Version = cereal.Version });
 
+        // Assert
         await using var readDb = _factory.CreateContext();
         var log = await readDb.AuditLogs
             .FirstOrDefaultAsync(l => l.EntityId == cereal.Id && l.Action == AuditAction.Updated);
-
         Assert.NotNull(log);
         Assert.Equal("bob", log.Actor);
         Assert.Contains(log.Changes, c => c.Field == "Name");
@@ -103,20 +105,21 @@ public class AuditInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_Creates_AuditLog_OnSoftDelete()
     {
-        // Create without interceptor
+        // Arrange — create without interceptor so no spurious Created log is written
         await using var setupDb = _factory.CreateContext();
         var cereal = new Cereal { Name = "Interceptor Delete Test" };
         setupDb.Cereals.Add(cereal);
         await setupDb.SaveChangesAsync();
 
+        // Act
         var interceptor = MakeInterceptor();
         await using var deleteDb = _factory.CreateContextWithInterceptor(interceptor);
         await new CerealService(deleteDb).DeleteAsync(cereal.Id);
 
+        // Assert
         await using var readDb = _factory.CreateContext();
         var log = await readDb.AuditLogs
             .FirstOrDefaultAsync(l => l.EntityId == cereal.Id && l.Action == AuditAction.SoftDeleted);
-
         Assert.NotNull(log);
         Assert.Empty(log.Changes); // field changes are not captured for soft-deletes
     }
@@ -126,13 +129,13 @@ public class AuditInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_Creates_AuditLog_OnRestore()
     {
-        // Create + delete without interceptor
+        // Arrange — create an already-deleted row without interceptor
         await using var setupDb = _factory.CreateContext();
         var cereal = new Cereal { Name = "Interceptor Restore Test", DeletedAt = DateTime.UtcNow };
         setupDb.Cereals.Add(cereal);
         await setupDb.SaveChangesAsync();
 
-        // Restore with interceptor — IgnoreQueryFilters needed to find a soft-deleted row
+        // Act — IgnoreQueryFilters needed to find the soft-deleted row
         var interceptor = MakeInterceptor();
         await using var restoreDb = _factory.CreateContextWithInterceptor(interceptor);
         var found = await restoreDb.Cereals
@@ -142,10 +145,10 @@ public class AuditInterceptorTests : IDisposable
         found.DeletedAt = null;
         await restoreDb.SaveChangesAsync();
 
+        // Assert
         await using var readDb = _factory.CreateContext();
         var log = await readDb.AuditLogs
             .FirstOrDefaultAsync(l => l.EntityId == cereal.Id && l.Action == AuditAction.Restored);
-
         Assert.NotNull(log);
     }
 
@@ -154,18 +157,19 @@ public class AuditInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_UsesSystemActor_WhenHttpContextIsNull()
     {
+        // Arrange
         var mockAccessor = new Mock<IHttpContextAccessor>();
         mockAccessor.Setup(a => a.HttpContext).Returns((HttpContext?)null);
-        var interceptor = new AuditInterceptor(mockAccessor.Object);
+        await using var db = _factory.CreateContextWithInterceptor(new AuditInterceptor(mockAccessor.Object));
 
-        await using var db = _factory.CreateContextWithInterceptor(interceptor);
+        // Act
         var cereal = await new CerealService(db)
             .CreateAsync(new CerealRequest { Name = "System Actor Test" });
 
+        // Assert
         await using var readDb = _factory.CreateContext();
         var log = await readDb.AuditLogs
             .FirstOrDefaultAsync(l => l.EntityId == cereal.Id && l.Action == AuditAction.Created);
-
         Assert.NotNull(log);
         Assert.Equal("system", log.Actor);
     }
@@ -175,6 +179,7 @@ public class AuditInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_Throws_WhenAuditLogIsModified()
     {
+        // Arrange
         await using var setupDb = _factory.CreateContext();
         var cereal = new Cereal { Name = "Tamper Target" };
         setupDb.Cereals.Add(cereal);
@@ -186,6 +191,7 @@ public class AuditInterceptorTests : IDisposable
         });
         await setupDb.SaveChangesAsync();
 
+        // Act & Assert
         var interceptor = MakeInterceptor();
         await using var tamperDb = _factory.CreateContextWithInterceptor(interceptor);
         var log = await tamperDb.AuditLogs.FirstAsync();
