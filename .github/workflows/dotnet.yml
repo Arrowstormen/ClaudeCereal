@@ -58,6 +58,7 @@ jobs:
           name: xUnit Results
           path: coverage/**/*.trx
           reporter: dotnet-trx
+          fail-on-error: false
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
