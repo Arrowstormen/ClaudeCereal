@@ -288,7 +288,6 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Cereals_Import_NoFile_Returns400()
     {
-        // Send a multipart body with no actual file part
         var response = await _factory.CreateClientWithRole(Roles.Editor)
             .PostAsync("/cereals/import", new MultipartFormDataContent());
 

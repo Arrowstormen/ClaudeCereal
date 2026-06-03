@@ -10,18 +10,23 @@ public class PaginationExtensionsTests : IDisposable
 
     public void Dispose() => _factory.Dispose();
 
+    private async Task SeedCerealsAsync(params string[] names)
+    {
+        await using var db = _factory.CreateContext();
+        foreach (var name in names)
+            db.Cereals.Add(new Cereal { Name = name });
+        await db.SaveChangesAsync();
+    }
+
     // ── Page normalisation ─────────────────────────────────────────────────────
 
     [Fact]
     public async Task ToPagedResultAsync_DefaultsToPage1_WhenPageIsNull()
     {
-        await using var db = _factory.CreateContext();
-        db.Cereals.Add(new Cereal { Name = "Pagination Default 1" });
-        db.Cereals.Add(new Cereal { Name = "Pagination Default 2" });
-        await db.SaveChangesAsync();
+        await SeedCerealsAsync("Pagination Default 1", "Pagination Default 2");
 
-        await using var qdb = _factory.CreateContext();
-        var result = await qdb.Cereals
+        await using var db = _factory.CreateContext();
+        var result = await db.Cereals
             .Where(c => c.Name.StartsWith("Pagination Default"))
             .ToPagedResultAsync(page: null, pageSize: 10);
 
@@ -31,12 +36,10 @@ public class PaginationExtensionsTests : IDisposable
     [Fact]
     public async Task ToPagedResultAsync_ClampsPageToOne_WhenNegative()
     {
-        await using var db = _factory.CreateContext();
-        db.Cereals.Add(new Cereal { Name = "Clamp Page Test" });
-        await db.SaveChangesAsync();
+        await SeedCerealsAsync("Clamp Page Test");
 
-        await using var qdb = _factory.CreateContext();
-        var result = await qdb.Cereals
+        await using var db = _factory.CreateContext();
+        var result = await db.Cereals
             .Where(c => c.Name == "Clamp Page Test")
             .ToPagedResultAsync(page: -5, pageSize: 10);
 
@@ -46,12 +49,10 @@ public class PaginationExtensionsTests : IDisposable
     [Fact]
     public async Task ToPagedResultAsync_UsesDefaultPageSize_WhenPageSizeIsNull()
     {
-        await using var db = _factory.CreateContext();
-        db.Cereals.Add(new Cereal { Name = "Default PS Test" });
-        await db.SaveChangesAsync();
+        await SeedCerealsAsync("Default PS Test");
 
-        await using var qdb = _factory.CreateContext();
-        var result = await qdb.Cereals
+        await using var db = _factory.CreateContext();
+        var result = await db.Cereals
             .Where(c => c.Name == "Default PS Test")
             .ToPagedResultAsync(page: 1, pageSize: null);
 
@@ -61,12 +62,10 @@ public class PaginationExtensionsTests : IDisposable
     [Fact]
     public async Task ToPagedResultAsync_ClampsPageSizeToMax()
     {
-        await using var db = _factory.CreateContext();
-        db.Cereals.Add(new Cereal { Name = "MaxPageSize Test" });
-        await db.SaveChangesAsync();
+        await SeedCerealsAsync("MaxPageSize Test");
 
-        await using var qdb = _factory.CreateContext();
-        var result = await qdb.Cereals
+        await using var db = _factory.CreateContext();
+        var result = await db.Cereals
             .Where(c => c.Name == "MaxPageSize Test")
             .ToPagedResultAsync(page: 1, pageSize: 9999);
 
@@ -78,13 +77,10 @@ public class PaginationExtensionsTests : IDisposable
     [Fact]
     public async Task ToPagedResultAsync_ReturnsCorrectSlice_ForPage2()
     {
-        await using var db = _factory.CreateContext();
-        for (int i = 1; i <= 4; i++)
-            db.Cereals.Add(new Cereal { Name = $"Slice Test {i:D2}" });
-        await db.SaveChangesAsync();
+        await SeedCerealsAsync("Slice Test 01", "Slice Test 02", "Slice Test 03", "Slice Test 04");
 
-        await using var qdb = _factory.CreateContext();
-        var result = await qdb.Cereals
+        await using var db = _factory.CreateContext();
+        var result = await db.Cereals
             .Where(c => c.Name.StartsWith("Slice Test"))
             .OrderBy(c => c.Name)
             .ToPagedResultAsync(page: 2, pageSize: 2);
@@ -97,12 +93,10 @@ public class PaginationExtensionsTests : IDisposable
     [Fact]
     public async Task ToPagedResultAsync_ReturnsEmptyItems_WhenPageBeyondTotal()
     {
-        await using var db = _factory.CreateContext();
-        db.Cereals.Add(new Cereal { Name = "BeyondPage Only" });
-        await db.SaveChangesAsync();
+        await SeedCerealsAsync("BeyondPage Only");
 
-        await using var qdb = _factory.CreateContext();
-        var result = await qdb.Cereals
+        await using var db = _factory.CreateContext();
+        var result = await db.Cereals
             .Where(c => c.Name == "BeyondPage Only")
             .ToPagedResultAsync(page: 99, pageSize: 10);
 
@@ -115,13 +109,10 @@ public class PaginationExtensionsTests : IDisposable
     [Fact]
     public async Task ToPagedResultAsync_ComputesTotalPages_Correctly()
     {
-        await using var db = _factory.CreateContext();
-        for (int i = 1; i <= 5; i++)
-            db.Cereals.Add(new Cereal { Name = $"TotalPages {i}" });
-        await db.SaveChangesAsync();
+        await SeedCerealsAsync("TotalPages 1", "TotalPages 2", "TotalPages 3", "TotalPages 4", "TotalPages 5");
 
-        await using var qdb = _factory.CreateContext();
-        var result = await qdb.Cereals
+        await using var db = _factory.CreateContext();
+        var result = await db.Cereals
             .Where(c => c.Name.StartsWith("TotalPages"))
             .ToPagedResultAsync(page: 1, pageSize: 2);
 
@@ -132,12 +123,10 @@ public class PaginationExtensionsTests : IDisposable
     [Fact]
     public async Task ToPagedResultAsync_SetsTotalPagesToOne_WhenResultFitsOnSinglePage()
     {
-        await using var db = _factory.CreateContext();
-        db.Cereals.Add(new Cereal { Name = "SinglePage Only" });
-        await db.SaveChangesAsync();
+        await SeedCerealsAsync("SinglePage Only");
 
-        await using var qdb = _factory.CreateContext();
-        var result = await qdb.Cereals
+        await using var db = _factory.CreateContext();
+        var result = await db.Cereals
             .Where(c => c.Name == "SinglePage Only")
             .ToPagedResultAsync(page: 1, pageSize: 10);
 

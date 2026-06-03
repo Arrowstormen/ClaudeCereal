@@ -1,0 +1,46 @@
+Summary
+  Generated on: 02/06/2026 - 15.52.07
+  Coverage date: 02/06/2026 - 15.48.30
+  Parser: Cobertura
+  Assemblies: 1
+  Classes: 24
+  Files: 23
+  Line coverage: 85.8%
+  Covered lines: 678
+  Uncovered lines: 112
+  Coverable lines: 790
+  Total lines: 1249
+  Branch coverage: 61.3% (165 of 269)
+  Covered branches: 165
+  Total branches: 269
+  Method coverage: 95.2% (162 of 170)
+  Full method coverage: 91.1% (155 of 170)
+  Covered methods: 162
+  Fully covered methods: 155
+  Total methods: 170
+
+ClaudeCereal                                                85.8%
+  ClaudeCereal.Authentication.RoleHierarchyTransformation    100%
+  ClaudeCereal.Data.AppDbContext                            93.3%
+  ClaudeCereal.Data.AuditInterceptor                          90%
+  ClaudeCereal.Data.CerealSeeder                               0%
+  ClaudeCereal.Endpoints.AuditEndpoints                      100%
+  ClaudeCereal.Endpoints.CerealEndpoints                    93.1%
+  ClaudeCereal.Exceptions.CerealAlreadyActiveException       100%
+  ClaudeCereal.Exceptions.SoftDeletedConflictException       100%
+  ClaudeCereal.Extensions.PaginationExtensions               100%
+  ClaudeCereal.Import.CerealImportParser                     100%
+  ClaudeCereal.Import.ParsedRow                              100%
+  ClaudeCereal.Models.AuditFieldChange                       100%
+  ClaudeCereal.Models.AuditFilter                            100%
+  ClaudeCereal.Models.AuditLog                               100%
+  ClaudeCereal.Models.Cereal                                 100%
+  ClaudeCereal.Models.CerealFilter                           100%
+  ClaudeCereal.Models.CerealImportRow                        100%
+  ClaudeCereal.Models.CerealRequest                          100%
+  ClaudeCereal.Models.ImportResult                           100%
+  ClaudeCereal.Models.PagedResult<T>                         100%
+  ClaudeCereal.Models.SkippedRow                             100%
+  ClaudeCereal.Services.AuditService                         100%
+  ClaudeCereal.Services.CerealImageService                   100%
+  ClaudeCereal.Services.CerealService                       79.4%

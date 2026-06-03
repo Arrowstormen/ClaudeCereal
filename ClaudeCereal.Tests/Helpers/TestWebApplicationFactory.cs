@@ -50,26 +50,24 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
         });
     }
 
-    /// <summary>Creates a client that authenticates with the given single role.</summary>
+    // Creates a client that authenticates with the given single role.
     public HttpClient CreateClientWithRole(string role)
     {
         var client = CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-Roles", role);
+        client.DefaultRequestHeaders.Add(TestAuthHandler.HeaderRoles, role);
         return client;
     }
 
-    /// <summary>Creates a client that presents no authentication credentials.</summary>
+    // Creates a client that presents no authentication credentials.
     public HttpClient CreateUnauthenticatedClient()
     {
         var client = CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-Unauthenticated", "true");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.HeaderUnauthenticated, "true");
         return client;
     }
 
-    /// <summary>
-    /// Resets all mock setups and call history. Call this at the start of each test
-    /// to prevent setup from one test leaking into the next.
-    /// </summary>
+    // Resets all mock setups and call history — call at the start of each test
+    // to prevent setup from one test leaking into the next.
     public void ResetMocks()
     {
         CerealService.Reset();

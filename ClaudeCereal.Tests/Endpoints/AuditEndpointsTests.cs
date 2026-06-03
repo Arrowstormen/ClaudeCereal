@@ -143,23 +143,4 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
             Times.Once);
     }
 
-    // ── Role hierarchy ─────────────────────────────────────────────────────────
-
-    [Fact]
-    public async Task Audit_GetAll_RoleHierarchyTransform_PreservesAdminAccess()
-    {
-        // Admin should satisfy AdminOnly policy (trivially), but this test explicitly
-        // confirms the hierarchy transformation doesn't break the Admin claim.
-        _factory.AuditService
-            .Setup(s => s.GetPagedAsync(It.IsAny<AuditFilter>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PagedResult<AuditLog>([], 1, 20, 0, 0));
-
-        var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-Roles", "Admin");
-        client.DefaultRequestHeaders.Add("X-Test-User",  "admin-user");
-
-        var response = await client.GetAsync("/audit");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
 }

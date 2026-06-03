@@ -24,15 +24,18 @@ public class TestAuthHandler(
     UrlEncoder                                   encoder)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
-    public const string SchemeName = "Test";
+    public const string SchemeName            = "Test";
+    public const string HeaderUnauthenticated = "X-Test-Unauthenticated";
+    public const string HeaderUser            = "X-Test-User";
+    public const string HeaderRoles           = "X-Test-Roles";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (Request.Headers.ContainsKey("X-Test-Unauthenticated"))
+        if (Request.Headers.ContainsKey(HeaderUnauthenticated))
             return Task.FromResult(AuthenticateResult.NoResult());
 
-        var user  = Request.Headers["X-Test-User"].FirstOrDefault() ?? "testuser";
-        var roles = (Request.Headers["X-Test-Roles"].FirstOrDefault() ?? string.Empty)
+        var user  = Request.Headers[HeaderUser].FirstOrDefault() ?? "testuser";
+        var roles = (Request.Headers[HeaderRoles].FirstOrDefault() ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         var claims = new List<Claim> { new(ClaimTypes.Name, user) };

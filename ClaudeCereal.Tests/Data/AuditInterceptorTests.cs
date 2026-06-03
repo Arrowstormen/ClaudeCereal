@@ -15,10 +15,7 @@ public class AuditInterceptorTests : IDisposable
 
     public void Dispose() => _factory.Dispose();
 
-    /// <summary>
-    /// Creates an AuditInterceptor whose accessor returns a fake HttpContext with
-    /// the given actor name and a fixed correlation ID.
-    /// </summary>
+    // Creates an AuditInterceptor with a fake HttpContext for the given actor and a fixed correlation ID.
     private static AuditInterceptor MakeInterceptor(string actor = "test-actor")
     {
         var identity = new ClaimsIdentity(
@@ -87,7 +84,6 @@ public class AuditInterceptorTests : IDisposable
         setupDb.Cereals.Add(cereal);
         await setupDb.SaveChangesAsync();
 
-        // Update with interceptor
         await using var updateDb = _factory.CreateContextWithInterceptor(interceptor);
         var svc     = new CerealService(updateDb);
         var request = new CerealRequest { Name = "Interceptor Update Test Renamed", Version = cereal.Version };
@@ -113,7 +109,6 @@ public class AuditInterceptorTests : IDisposable
         setupDb.Cereals.Add(cereal);
         await setupDb.SaveChangesAsync();
 
-        // Delete with interceptor
         var interceptor = MakeInterceptor();
         await using var deleteDb = _factory.CreateContextWithInterceptor(interceptor);
         await new CerealService(deleteDb).DeleteAsync(cereal.Id);
@@ -180,7 +175,6 @@ public class AuditInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_Throws_WhenAuditLogIsModified()
     {
-        // Seed an audit log entry
         await using var setupDb = _factory.CreateContext();
         var cereal = new Cereal { Name = "Tamper Target" };
         setupDb.Cereals.Add(cereal);
@@ -192,7 +186,6 @@ public class AuditInterceptorTests : IDisposable
         });
         await setupDb.SaveChangesAsync();
 
-        // Attempt to modify it through a context that has the interceptor
         var interceptor = MakeInterceptor();
         await using var tamperDb = _factory.CreateContextWithInterceptor(interceptor);
         var log = await tamperDb.AuditLogs.FirstAsync();
