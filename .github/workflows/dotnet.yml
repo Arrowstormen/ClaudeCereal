@@ -1,36 +1,49 @@
-name: Build and Tests
+name: CI
 
-on:  
+on:
   push:
-    branches: [ main ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "master" ]
 
-jobs:  
-  build:    
-    runs-on: windows-latest
-    
-    steps:      
-      - uses: actions/checkout@v2
-      
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
 
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v1.0.5
-        
-      - name: Setup VSTest
-        uses: darenm/Setup-VSTest@v1
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Navigate to Workspace
-        run: cd $GITHUB_WORKSPACE
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
 
-      - name: Restore Packages
-        run: nuget restore Sandbox.sln
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
-      - name: Build Solution
-        run: |
-          msbuild.exe Sandbox.sln /p:platform="Any CPU" /p:configuration="Release"
-        
-      - name: Run Tests
-        run: vstest.console.exe .\tests\Sandbox.Tests\bin\Release\Sandbox.Tests.dll
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: >
+          dotnet test
+          --no-build
+          --configuration Release
+          --verbosity normal
+          --collect:"XPlat Code Coverage"
+          --results-directory coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/**/coverage.cobertura.xml
+          if-no-files-found: warn
