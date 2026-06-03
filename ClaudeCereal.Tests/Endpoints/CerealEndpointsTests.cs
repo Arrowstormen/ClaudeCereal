@@ -25,7 +25,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── GET /cereals ───────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Cereals_GetAll_Unauthenticated_Returns401()
+    public async Task Cereals_GetAll_WhenUnauthenticated_ShouldReturn401()
     {
         var client   = _factory.CreateUnauthenticatedClient();
         var response = await client.GetAsync("/cereals");
@@ -34,7 +34,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereals_GetAll_ReaderRole_Returns200()
+    public async Task Cereals_GetAll_WhenReaderRole_ShouldReturn200()
     {
         _factory.CerealService
             .Setup(s => s.GetFilteredAsync(It.IsAny<CerealFilter>(), It.IsAny<CancellationToken>()))
@@ -47,7 +47,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereals_GetAll_InvalidCalorieRange_Returns400()
+    public async Task Cereals_GetAll_WhenCalorieRangeIsInvalid_ShouldReturn400()
     {
         // MinCalories > MaxCalories triggers a validation problem (ASP.NET returns 400)
         var response = await _factory.CreateClientWithRole(Roles.Reader)
@@ -59,7 +59,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── GET /cereals/{id} ──────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Cereal_GetById_CerealExists_Returns200()
+    public async Task Cereal_GetById_WhenCerealExists_ShouldReturn200()
     {
         var cereal = new Cereal { Id = 1, Name = "Cheerios" };
         _factory.CerealService
@@ -73,7 +73,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereal_GetById_IdDoesNotExist_Returns404()
+    public async Task Cereal_GetById_WhenIdDoesNotExist_ShouldReturn404()
     {
         _factory.CerealService
             .Setup(s => s.GetByIdAsync(999, It.IsAny<CancellationToken>()))
@@ -89,7 +89,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereal_GetById_SoftDeleted_Returns410()
+    public async Task Cereal_GetById_WhenSoftDeleted_ShouldReturn410()
     {
         _factory.CerealService
             .Setup(s => s.GetByIdAsync(42, It.IsAny<CancellationToken>()))
@@ -107,7 +107,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── POST /cereals ──────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Cereals_Create_ReaderRole_Returns403()
+    public async Task Cereals_Create_WhenReaderRole_ShouldReturn403()
     {
         var response = await _factory.CreateClientWithRole(Roles.Reader)
             .PostAsJsonAsync("/cereals", new CerealRequest { Name = "Forbidden" });
@@ -116,7 +116,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereals_Create_EditorRole_Returns201WithLocation()
+    public async Task Cereals_Create_WhenEditorRole_ShouldReturn201WithLocation()
     {
         var created = new Cereal { Id = 7, Name = "New Cereal" };
         _factory.CerealService
@@ -131,7 +131,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereals_Create_NameMatchesSoftDeletedRow_Returns409()
+    public async Task Cereals_Create_WhenNameMatchesSoftDeletedRow_ShouldReturn409()
     {
         _factory.CerealService
             .Setup(s => s.CreateAsync(It.IsAny<CerealRequest>(), It.IsAny<CancellationToken>()))
@@ -146,7 +146,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── PUT /cereals/{id} ──────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Cereal_Update_EditorRole_Returns200()
+    public async Task Cereal_Update_WhenEditorRole_ShouldReturn200()
     {
         var updated = new Cereal { Id = 5, Name = "Updated" };
         _factory.CerealService
@@ -160,7 +160,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereal_Update_IdDoesNotExist_Returns404()
+    public async Task Cereal_Update_WhenIdDoesNotExist_ShouldReturn404()
     {
         _factory.CerealService
             .Setup(s => s.UpdateAsync(404, It.IsAny<CerealRequest>(), It.IsAny<CancellationToken>()))
@@ -173,7 +173,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereal_Update_VersionIsStale_Returns409()
+    public async Task Cereal_Update_WhenVersionIsStale_ShouldReturn409()
     {
         _factory.CerealService
             .Setup(s => s.UpdateAsync(3, It.IsAny<CerealRequest>(), It.IsAny<CancellationToken>()))
@@ -188,7 +188,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── DELETE /cereals/{id} ───────────────────────────────────────────────────
 
     [Fact]
-    public async Task Cereal_Delete_EditorRole_Returns403()
+    public async Task Cereal_Delete_WhenEditorRole_ShouldReturn403()
     {
         var response = await _factory.CreateClientWithRole(Roles.Editor)
             .DeleteAsync("/cereals/1");
@@ -197,7 +197,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereal_Delete_AdminRole_Returns204()
+    public async Task Cereal_Delete_WhenAdminRole_ShouldReturn204()
     {
         _factory.CerealService
             .Setup(s => s.DeleteAsync(1, It.IsAny<CancellationToken>()))
@@ -210,7 +210,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereal_Delete_IdDoesNotExist_Returns404()
+    public async Task Cereal_Delete_WhenIdDoesNotExist_ShouldReturn404()
     {
         _factory.CerealService
             .Setup(s => s.DeleteAsync(999, It.IsAny<CancellationToken>()))
@@ -225,7 +225,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── POST /cereals/{id}/restore ─────────────────────────────────────────────
 
     [Fact]
-    public async Task Cereal_Restore_EditorRole_Returns403()
+    public async Task Cereal_Restore_WhenEditorRole_ShouldReturn403()
     {
         var response = await _factory.CreateClientWithRole(Roles.Editor)
             .PostAsync("/cereals/1/restore", null);
@@ -234,7 +234,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereal_Restore_AdminRole_Returns200()
+    public async Task Cereal_Restore_WhenAdminRole_ShouldReturn200()
     {
         var restored = new Cereal { Id = 10, Name = "Restored" };
         _factory.CerealService
@@ -248,7 +248,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereal_Restore_AlreadyActive_Returns409()
+    public async Task Cereal_Restore_WhenAlreadyActive_ShouldReturn409()
     {
         _factory.CerealService
             .Setup(s => s.RestoreAsync(11, It.IsAny<CancellationToken>()))
@@ -261,7 +261,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereal_Restore_IdDoesNotExist_Returns404()
+    public async Task Cereal_Restore_WhenIdDoesNotExist_ShouldReturn404()
     {
         _factory.CerealService
             .Setup(s => s.RestoreAsync(999, It.IsAny<CancellationToken>()))
@@ -276,7 +276,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── POST /cereals/import ───────────────────────────────────────────────────
 
     [Fact]
-    public async Task Cereals_Import_ReaderRole_Returns403()
+    public async Task Cereals_Import_WhenReaderRole_ShouldReturn403()
     {
         var content = BuildCsvFile("name\r\nTest\r\n");
         var response = await _factory.CreateClientWithRole(Roles.Reader)
@@ -286,7 +286,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereals_Import_NoFile_Returns400()
+    public async Task Cereals_Import_WhenNoFile_ShouldReturn400()
     {
         var response = await _factory.CreateClientWithRole(Roles.Editor)
             .PostAsync("/cereals/import", new MultipartFormDataContent());
@@ -295,7 +295,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereals_Import_EditorRoleWithCsvFile_Returns200()
+    public async Task Cereals_Import_WhenEditorRoleWithCsvFile_ShouldReturn200()
     {
         _factory.CerealService
             .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Csv, It.IsAny<CancellationToken>()))
@@ -312,7 +312,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereals_Import_EditorRoleWithJsonFile_Returns200()
+    public async Task Cereals_Import_WhenEditorRoleWithJsonFile_ShouldReturn200()
     {
         _factory.CerealService
             .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Json, It.IsAny<CancellationToken>()))
@@ -329,7 +329,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereals_Import_CsvFileExtension_RoutesToCsvImport()
+    public async Task Cereals_Import_WhenCsvFileExtension_ShouldRouteToCsvImport()
     {
         _factory.CerealService
             .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Csv, It.IsAny<CancellationToken>()))
@@ -351,7 +351,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereals_Import_JsonFileExtension_RoutesToJsonImport()
+    public async Task Cereals_Import_WhenJsonFileExtension_ShouldRouteToJsonImport()
     {
         _factory.CerealService
             .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Json, It.IsAny<CancellationToken>()))
@@ -373,7 +373,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereals_Import_UnknownFormat_Returns400()
+    public async Task Cereals_Import_WhenUnknownFormat_ShouldReturn400()
     {
         var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes("data"));
         byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
@@ -389,7 +389,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── GET /cereals/{id}/image ────────────────────────────────────────────────
 
     [Fact]
-    public async Task Cereal_GetImage_NoImageFile_Returns404()
+    public async Task Cereal_GetImage_WhenNoImageFile_ShouldReturn404()
     {
         var cereal = new Cereal { Id = 20, Name = "No Image Cereal" };
         _factory.CerealService
@@ -405,7 +405,7 @@ public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Cereal_GetImage_CerealDoesNotExist_Returns404()
+    public async Task Cereal_GetImage_WhenCerealDoesNotExist_ShouldReturn404()
     {
         _factory.CerealService
             .Setup(s => s.GetByIdAsync(21, It.IsAny<CancellationToken>()))

@@ -35,7 +35,7 @@ public class AuditInterceptorTests : IDisposable
     // ── Created ────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task SaveChangesAsync_Creates_AuditLog_OnInsert()
+    public async Task SaveChangesAsync_WhenInsert_ShouldCreateAuditLog()
     {
         // Arrange
         var interceptor = MakeInterceptor("alice");
@@ -55,7 +55,7 @@ public class AuditInterceptorTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveChangesAsync_CapturesFieldChanges_OnCreate()
+    public async Task SaveChangesAsync_WhenCreate_ShouldCaptureFieldChanges()
     {
         // Arrange
         var interceptor = MakeInterceptor();
@@ -77,7 +77,7 @@ public class AuditInterceptorTests : IDisposable
     // ── Updated ────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task SaveChangesAsync_Creates_AuditLog_OnUpdate()
+    public async Task SaveChangesAsync_WhenUpdate_ShouldCreateAuditLog()
     {
         // Arrange — create without interceptor so no spurious Created log is written
         await using var setupDb = _factory.CreateContext();
@@ -103,7 +103,7 @@ public class AuditInterceptorTests : IDisposable
     // ── SoftDeleted ────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task SaveChangesAsync_Creates_AuditLog_OnSoftDelete()
+    public async Task SaveChangesAsync_WhenSoftDelete_ShouldCreateAuditLog()
     {
         // Arrange — create without interceptor so no spurious Created log is written
         await using var setupDb = _factory.CreateContext();
@@ -127,7 +127,7 @@ public class AuditInterceptorTests : IDisposable
     // ── Restored ───────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task SaveChangesAsync_Creates_AuditLog_OnRestore()
+    public async Task SaveChangesAsync_WhenRestore_ShouldCreateAuditLog()
     {
         // Arrange — create an already-deleted row without interceptor
         await using var setupDb = _factory.CreateContext();
@@ -155,7 +155,7 @@ public class AuditInterceptorTests : IDisposable
     // ── Actor / CorrelationId propagation ──────────────────────────────────────
 
     [Fact]
-    public async Task SaveChangesAsync_UsesSystemActor_WhenHttpContextIsNull()
+    public async Task SaveChangesAsync_WhenHttpContextIsNull_ShouldUseSystemActor()
     {
         // Arrange
         var mockAccessor = new Mock<IHttpContextAccessor>();
@@ -177,7 +177,7 @@ public class AuditInterceptorTests : IDisposable
     // ── Tamper protection ──────────────────────────────────────────────────────
 
     [Fact]
-    public async Task SaveChangesAsync_Throws_WhenAuditLogIsModified()
+    public async Task SaveChangesAsync_WhenAuditLogIsModified_ShouldThrow()
     {
         // Arrange
         await using var setupDb = _factory.CreateContext();

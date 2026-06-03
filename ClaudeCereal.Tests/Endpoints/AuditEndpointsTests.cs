@@ -21,7 +21,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── Authorization ──────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Audit_GetAll_Unauthenticated_Returns401()
+    public async Task Audit_GetAll_WhenUnauthenticated_ShouldReturn401()
     {
         var response = await _factory.CreateUnauthenticatedClient()
             .GetAsync("/audit");
@@ -30,7 +30,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Audit_GetAll_ReaderRole_Returns403()
+    public async Task Audit_GetAll_WhenReaderRole_ShouldReturn403()
     {
         var response = await _factory.CreateClientWithRole(Roles.Reader)
             .GetAsync("/audit");
@@ -39,7 +39,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Audit_GetAll_EditorRole_Returns403()
+    public async Task Audit_GetAll_WhenEditorRole_ShouldReturn403()
     {
         var response = await _factory.CreateClientWithRole(Roles.Editor)
             .GetAsync("/audit");
@@ -48,7 +48,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Audit_GetAll_AdminRole_Returns200()
+    public async Task Audit_GetAll_WhenAdminRole_ShouldReturn200()
     {
         _factory.AuditService
             .Setup(s => s.GetPagedAsync(It.IsAny<AuditFilter>(), It.IsAny<CancellationToken>()))
@@ -63,7 +63,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── Response shape ─────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Audit_GetAll_AdminRole_ReturnsPagedResult()
+    public async Task Audit_GetAll_WhenAdminRole_ShouldReturnPagedResult()
     {
         var log = new AuditLog
         {
@@ -93,7 +93,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     // ── Filter query parameters ────────────────────────────────────────────────
 
     [Fact]
-    public async Task Audit_GetAll_EntityIdQueryParam_ForwardsFilterToService()
+    public async Task Audit_GetAll_WhenEntityIdQueryParam_ShouldForwardFilterToService()
     {
         _factory.AuditService
             .Setup(s => s.GetPagedAsync(It.IsAny<AuditFilter>(), It.IsAny<CancellationToken>()))
@@ -110,7 +110,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Audit_GetAll_ActionQueryParam_ForwardsFilterToService()
+    public async Task Audit_GetAll_WhenActionQueryParam_ShouldForwardFilterToService()
     {
         _factory.AuditService
             .Setup(s => s.GetPagedAsync(It.IsAny<AuditFilter>(), It.IsAny<CancellationToken>()))
@@ -127,7 +127,7 @@ public class AuditEndpointsTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Audit_GetAll_PaginationQueryParams_ForwardedToService()
+    public async Task Audit_GetAll_WhenPaginationQueryParams_ShouldForwardToService()
     {
         _factory.AuditService
             .Setup(s => s.GetPagedAsync(It.IsAny<AuditFilter>(), It.IsAny<CancellationToken>()))

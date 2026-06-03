@@ -21,7 +21,7 @@ public class PaginationExtensionsTests : IDisposable
     // ── Page normalisation ─────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ToPagedResultAsync_DefaultsToPage1_WhenPageIsNull()
+    public async Task ToPagedResultAsync_WhenPageIsNull_ShouldDefaultToPage1()
     {
         await SeedCerealsAsync("Pagination Default 1", "Pagination Default 2");
 
@@ -34,7 +34,7 @@ public class PaginationExtensionsTests : IDisposable
     }
 
     [Fact]
-    public async Task ToPagedResultAsync_ClampsPageToOne_WhenNegative()
+    public async Task ToPagedResultAsync_WhenPageIsNegative_ShouldClampToOne()
     {
         await SeedCerealsAsync("Clamp Page Test");
 
@@ -47,7 +47,7 @@ public class PaginationExtensionsTests : IDisposable
     }
 
     [Fact]
-    public async Task ToPagedResultAsync_UsesDefaultPageSize_WhenPageSizeIsNull()
+    public async Task ToPagedResultAsync_WhenPageSizeIsNull_ShouldUseDefaultPageSize()
     {
         await SeedCerealsAsync("Default PS Test");
 
@@ -60,7 +60,7 @@ public class PaginationExtensionsTests : IDisposable
     }
 
     [Fact]
-    public async Task ToPagedResultAsync_ClampsPageSizeToMax()
+    public async Task ToPagedResultAsync_WhenPageSizeExceedsMax_ShouldClampToMax()
     {
         await SeedCerealsAsync("MaxPageSize Test");
 
@@ -75,7 +75,7 @@ public class PaginationExtensionsTests : IDisposable
     // ── Correct slicing ────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ToPagedResultAsync_ReturnsCorrectSlice_ForPage2()
+    public async Task ToPagedResultAsync_WhenOnPage2_ShouldReturnCorrectSlice()
     {
         await SeedCerealsAsync("Slice Test 01", "Slice Test 02", "Slice Test 03", "Slice Test 04");
 
@@ -91,7 +91,7 @@ public class PaginationExtensionsTests : IDisposable
     }
 
     [Fact]
-    public async Task ToPagedResultAsync_ReturnsEmptyItems_WhenPageBeyondTotal()
+    public async Task ToPagedResultAsync_WhenPageBeyondTotal_ShouldReturnEmptyItems()
     {
         await SeedCerealsAsync("BeyondPage Only");
 
@@ -107,7 +107,7 @@ public class PaginationExtensionsTests : IDisposable
     // ── TotalPages calculation ─────────────────────────────────────────────────
 
     [Fact]
-    public async Task ToPagedResultAsync_ComputesTotalPages_Correctly()
+    public async Task ToPagedResultAsync_WhenMultiplePages_ShouldComputeTotalPagesCorrectly()
     {
         await SeedCerealsAsync("TotalPages 1", "TotalPages 2", "TotalPages 3", "TotalPages 4", "TotalPages 5");
 
@@ -121,7 +121,7 @@ public class PaginationExtensionsTests : IDisposable
     }
 
     [Fact]
-    public async Task ToPagedResultAsync_SetsTotalPagesToOne_WhenResultFitsOnSinglePage()
+    public async Task ToPagedResultAsync_WhenResultFitsOnSinglePage_ShouldSetTotalPagesToOne()
     {
         await SeedCerealsAsync("SinglePage Only");
 
