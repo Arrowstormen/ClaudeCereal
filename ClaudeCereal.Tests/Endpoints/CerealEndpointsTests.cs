@@ -1,0 +1,439 @@
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text;
+using ClaudeCereal.Authentication;
+using ClaudeCereal.Exceptions;
+using ClaudeCereal.Models;
+using ClaudeCereal.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
+using Moq;
+
+namespace ClaudeCereal.Tests.Endpoints;
+
+public class CerealEndpointsTests : IClassFixture<TestWebApplicationFactory>
+{
+    private readonly TestWebApplicationFactory _factory;
+
+    public CerealEndpointsTests(TestWebApplicationFactory factory)
+    {
+        _factory = factory;
+        _factory.ResetMocks();
+    }
+
+    // ── GET /cereals ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Cereals_GetAll_WhenUnauthenticated_ShouldReturn401()
+    {
+        var client   = _factory.CreateUnauthenticatedClient();
+        var response = await client.GetAsync("/cereals");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereals_GetAll_WhenReaderRole_ShouldReturn200()
+    {
+        _factory.CerealService
+            .Setup(s => s.GetFilteredAsync(It.IsAny<CerealFilter>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResult<Cereal>([], 1, 20, 0, 0));
+
+        var response = await _factory.CreateClientWithRole(Roles.Reader)
+            .GetAsync("/cereals");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereals_GetAll_WhenCalorieRangeIsInvalid_ShouldReturn400()
+    {
+        // MinCalories > MaxCalories triggers a validation problem (ASP.NET returns 400)
+        var response = await _factory.CreateClientWithRole(Roles.Reader)
+            .GetAsync("/cereals?MinCalories=200&MaxCalories=100");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ── GET /cereals/{id} ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Cereal_GetById_WhenCerealExists_ShouldReturn200()
+    {
+        var cereal = new Cereal { Id = 1, Name = "Cheerios" };
+        _factory.CerealService
+            .Setup(s => s.GetByIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(cereal);
+
+        var response = await _factory.CreateClientWithRole(Roles.Reader)
+            .GetAsync("/cereals/1");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereal_GetById_WhenIdDoesNotExist_ShouldReturn404()
+    {
+        _factory.CerealService
+            .Setup(s => s.GetByIdAsync(999, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Cereal?)null);
+        _factory.CerealService
+            .Setup(s => s.IsDeletedAsync(999, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var response = await _factory.CreateClientWithRole(Roles.Reader)
+            .GetAsync("/cereals/999");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereal_GetById_WhenSoftDeleted_ShouldReturn410()
+    {
+        _factory.CerealService
+            .Setup(s => s.GetByIdAsync(42, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Cereal?)null);
+        _factory.CerealService
+            .Setup(s => s.IsDeletedAsync(42, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var response = await _factory.CreateClientWithRole(Roles.Reader)
+            .GetAsync("/cereals/42");
+
+        Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
+    }
+
+    // ── POST /cereals ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Cereals_Create_WhenReaderRole_ShouldReturn403()
+    {
+        var response = await _factory.CreateClientWithRole(Roles.Reader)
+            .PostAsJsonAsync("/cereals", new CerealRequest { Name = "Forbidden" });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereals_Create_WhenEditorRole_ShouldReturn201WithLocation()
+    {
+        var created = new Cereal { Id = 7, Name = "New Cereal" };
+        _factory.CerealService
+            .Setup(s => s.CreateAsync(It.IsAny<CerealRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(created);
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsJsonAsync("/cereals", new CerealRequest { Name = "New Cereal" }, TestJsonOptions.Default);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Contains("/cereals/7", response.Headers.Location?.OriginalString ?? string.Empty);
+    }
+
+    [Fact]
+    public async Task Cereals_Create_WhenNameMatchesSoftDeletedRow_ShouldReturn409()
+    {
+        _factory.CerealService
+            .Setup(s => s.CreateAsync(It.IsAny<CerealRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new SoftDeletedConflictException("Conflict Cereal"));
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsJsonAsync("/cereals", new CerealRequest { Name = "Conflict Cereal" }, TestJsonOptions.Default);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    // ── PUT /cereals/{id} ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Cereal_Update_WhenEditorRole_ShouldReturn200()
+    {
+        var updated = new Cereal { Id = 5, Name = "Updated" };
+        _factory.CerealService
+            .Setup(s => s.UpdateAsync(5, It.IsAny<CerealRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(updated);
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PutAsJsonAsync("/cereals/5", new CerealRequest { Name = "Updated" }, TestJsonOptions.Default);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereal_Update_WhenIdDoesNotExist_ShouldReturn404()
+    {
+        _factory.CerealService
+            .Setup(s => s.UpdateAsync(404, It.IsAny<CerealRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Cereal?)null);
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PutAsJsonAsync("/cereals/404", new CerealRequest { Name = "Ghost" }, TestJsonOptions.Default);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereal_Update_WhenVersionIsStale_ShouldReturn409()
+    {
+        _factory.CerealService
+            .Setup(s => s.UpdateAsync(3, It.IsAny<CerealRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PutAsJsonAsync("/cereals/3", new CerealRequest { Name = "Stale" }, TestJsonOptions.Default);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    // ── DELETE /cereals/{id} ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Cereal_Delete_WhenEditorRole_ShouldReturn403()
+    {
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .DeleteAsync("/cereals/1");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereal_Delete_WhenAdminRole_ShouldReturn204()
+    {
+        _factory.CerealService
+            .Setup(s => s.DeleteAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var response = await _factory.CreateClientWithRole(Roles.Admin)
+            .DeleteAsync("/cereals/1");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereal_Delete_WhenIdDoesNotExist_ShouldReturn404()
+    {
+        _factory.CerealService
+            .Setup(s => s.DeleteAsync(999, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var response = await _factory.CreateClientWithRole(Roles.Admin)
+            .DeleteAsync("/cereals/999");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // ── POST /cereals/{id}/restore ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task Cereal_Restore_WhenEditorRole_ShouldReturn403()
+    {
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/1/restore", null);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereal_Restore_WhenAdminRole_ShouldReturn200()
+    {
+        var restored = new Cereal { Id = 10, Name = "Restored" };
+        _factory.CerealService
+            .Setup(s => s.RestoreAsync(10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(restored);
+
+        var response = await _factory.CreateClientWithRole(Roles.Admin)
+            .PostAsync("/cereals/10/restore", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereal_Restore_WhenAlreadyActive_ShouldReturn409()
+    {
+        _factory.CerealService
+            .Setup(s => s.RestoreAsync(11, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new CerealAlreadyActiveException(11));
+
+        var response = await _factory.CreateClientWithRole(Roles.Admin)
+            .PostAsync("/cereals/11/restore", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereal_Restore_WhenIdDoesNotExist_ShouldReturn404()
+    {
+        _factory.CerealService
+            .Setup(s => s.RestoreAsync(999, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Cereal?)null);
+
+        var response = await _factory.CreateClientWithRole(Roles.Admin)
+            .PostAsync("/cereals/999/restore", null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // ── POST /cereals/import ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Cereals_Import_WhenReaderRole_ShouldReturn403()
+    {
+        var content = BuildCsvFile("name\r\nTest\r\n");
+        var response = await _factory.CreateClientWithRole(Roles.Reader)
+            .PostAsync("/cereals/import", content);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereals_Import_WhenNoFile_ShouldReturn400()
+    {
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/import", new MultipartFormDataContent());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereals_Import_WhenEditorRoleWithCsvFile_ShouldReturn200()
+    {
+        _factory.CerealService
+            .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Csv, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ImportResult(2, 0, []));
+
+        var content  = BuildCsvFile("name,calories\r\nA,100\r\nB,200\r\n");
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/import", content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ImportResult>(TestJsonOptions.Default);
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Inserted);
+    }
+
+    [Fact]
+    public async Task Cereals_Import_WhenEditorRoleWithJsonFile_ShouldReturn200()
+    {
+        _factory.CerealService
+            .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Json, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ImportResult(1, 0, []));
+
+        var content = BuildJsonFile("""[{"name":"Test"}]""");
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/import", content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        _factory.CerealService.Verify(
+            s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Json, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Cereals_Import_WhenCsvFileExtension_ShouldRouteToCsvImport()
+    {
+        _factory.CerealService
+            .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Csv, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ImportResult(1, 0, []));
+
+        // Content-Type is generic — format must be inferred from the .csv extension
+        var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes("name\r\nExt Test\r\n"));
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        var form = new MultipartFormDataContent();
+        form.Add(byteContent, "file", "cereals.csv");
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/import", form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        _factory.CerealService.Verify(
+            s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Csv, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Cereals_Import_WhenJsonFileExtension_ShouldRouteToJsonImport()
+    {
+        _factory.CerealService
+            .Setup(s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Json, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ImportResult(1, 0, []));
+
+        // Content-Type is generic — format must be inferred from the .json extension
+        var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes("""[{"name":"Ext Test"}]"""));
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        var form = new MultipartFormDataContent();
+        form.Add(byteContent, "file", "cereals.json");
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/import", form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        _factory.CerealService.Verify(
+            s => s.ImportAsync(It.IsAny<Stream>(), ImportFormat.Json, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Cereals_Import_WhenUnknownFormat_ShouldReturn400()
+    {
+        var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes("data"));
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        var form = new MultipartFormDataContent();
+        form.Add(byteContent, "file", "cereals.xlsx");
+
+        var response = await _factory.CreateClientWithRole(Roles.Editor)
+            .PostAsync("/cereals/import", form);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ── GET /cereals/{id}/image ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Cereal_GetImage_WhenNoImageFile_ShouldReturn404()
+    {
+        var cereal = new Cereal { Id = 20, Name = "No Image Cereal" };
+        _factory.CerealService
+            .Setup(s => s.GetByIdAsync(20, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(cereal);
+
+        // ICerealImageService is NOT mocked — the real singleton is registered with an empty
+        // index (test environment has no image directory).
+        var response = await _factory.CreateClientWithRole(Roles.Reader)
+            .GetAsync("/cereals/20/image");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cereal_GetImage_WhenCerealDoesNotExist_ShouldReturn404()
+    {
+        _factory.CerealService
+            .Setup(s => s.GetByIdAsync(21, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Cereal?)null);
+
+        var response = await _factory.CreateClientWithRole(Roles.Reader)
+            .GetAsync("/cereals/21/image");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    private static MultipartFormDataContent BuildCsvFile(string csvContent)
+    {
+        var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent));
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+        var form = new MultipartFormDataContent();
+        form.Add(byteContent, "file", "cereals.csv");
+        return form;
+    }
+
+    private static MultipartFormDataContent BuildJsonFile(string jsonContent)
+    {
+        var byteContent = new ByteArrayContent(Encoding.UTF8.GetBytes(jsonContent));
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        var form = new MultipartFormDataContent();
+        form.Add(byteContent, "file", "cereals.json");
+        return form;
+    }
+}

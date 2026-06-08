@@ -12,22 +12,18 @@ public class CerealService(AppDbContext db) : ICerealService
     public async Task<PagedResult<Cereal>> GetFilteredAsync(
         CerealFilter filter, CancellationToken cancellationToken = default)
     {
-        // When IncludeDeleted is requested, bypass the global query filter so deleted rows appear.
         var query = filter.IncludeDeleted == true
             ? db.Cereals.AsNoTracking().IgnoreQueryFilters().AsQueryable()
             : db.Cereals.AsNoTracking().AsQueryable();
 
-        // Name
         if (!string.IsNullOrEmpty(filter.NameContains))
             query = query.Where(c => c.Name.Contains(filter.NameContains));
-        // Categorical
         if (filter.Manufacturer.HasValue)
             query = query.Where(c => c.Mfr == filter.Manufacturer);
         if (filter.Type.HasValue)
             query = query.Where(c => c.Type == filter.Type);
         if (filter.Shelf.HasValue)
             query = query.Where(c => c.Shelf == filter.Shelf);
-        // Nutrition ranges
         if (filter.MinCalories.HasValue)
             query = query.Where(c => c.Calories >= filter.MinCalories);
         if (filter.MaxCalories.HasValue)
@@ -64,7 +60,6 @@ public class CerealService(AppDbContext db) : ICerealService
             query = query.Where(c => c.Vitamins >= filter.MinVitamins);
         if (filter.MaxVitamins.HasValue)
             query = query.Where(c => c.Vitamins <= filter.MaxVitamins);
-        // Serving size ranges
         if (filter.MinWeight.HasValue)
             query = query.Where(c => c.Weight >= filter.MinWeight);
         if (filter.MaxWeight.HasValue)
@@ -73,7 +68,6 @@ public class CerealService(AppDbContext db) : ICerealService
             query = query.Where(c => c.Cups >= filter.MinCups);
         if (filter.MaxCups.HasValue)
             query = query.Where(c => c.Cups <= filter.MaxCups);
-        // Rating range
         if (filter.MinRating.HasValue)
             query = query.Where(c => c.Rating >= filter.MinRating);
         if (filter.MaxRating.HasValue)
@@ -105,7 +99,6 @@ public class CerealService(AppDbContext db) : ICerealService
         return await query.ToPagedResultAsync(filter.Page, filter.PageSize, cancellationToken);
     }
 
-    // Global query filter handles the DeletedAt == null predicate automatically.
     public async Task<Cereal?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
         await db.Cereals.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
@@ -137,16 +130,13 @@ public class CerealService(AppDbContext db) : ICerealService
     public async Task<Cereal?> UpdateAsync(
         int id, CerealRequest request, CancellationToken cancellationToken = default)
     {
-        // Global query filter ensures this only finds active (non-deleted) rows.
         var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
         if (cereal is null) return null;
 
-        // Tell EF Core to check the client's version in the SQL WHERE clause
         db.Entry(cereal).Property(c => c.Version).OriginalValue = request.Version;
         MapToEntity(request, cereal);
         cereal.Version++;
 
-        // Throws DbUpdateConcurrencyException if another user already changed the row
         await db.SaveChangesAsync(CancellationToken.None);
         return cereal;
     }
@@ -173,7 +163,6 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        // Global query filter ensures only active rows are found.
         var cereal = await db.Cereals.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
         if (cereal is null) return false;
 
@@ -191,8 +180,6 @@ public class CerealService(AppDbContext db) : ICerealService
             return new ImportResult(0, 0, []);
 
         // Pre-load any cereals that already exist for those names — one round-trip.
-        // Global query filter means only active (non-deleted) rows are matched here;
-        // restoring soft-deleted rows via import is tracked as a future improvement.
         var validNames = parsed
             .OfType<ParsedRow.Ok>()
             .Select(p => p.Row.Name)
@@ -258,8 +245,11 @@ public class CerealService(AppDbContext db) : ICerealService
 
     public async Task<Cereal?> RestoreAsync(int id, CancellationToken cancellationToken = default)
     {
-        // FindAsync bypasses global query filters, so this correctly finds deleted rows.
-        var cereal = await db.Cereals.FindAsync([id], cancellationToken);
+        // IgnoreQueryFilters is required: FindAsync respects the global soft-delete filter
+        // in EF Core 5+, so it would return null for deleted rows without this override.
+        var cereal = await db.Cereals
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
         if (cereal is null) return null;
 
         // Already active — the precondition for restore is not met.

@@ -6,12 +6,16 @@ public class CerealImageService : ICerealImageService
 
     public CerealImageService(string imageDirectory)
     {
-        _index = Directory
-            .EnumerateFiles(imageDirectory)
-            .ToDictionary(
-                path => Slugify(Path.GetFileNameWithoutExtension(path)),
-                path => path,
-                StringComparer.Ordinal);
+        // If the image directory is absent (e.g. first run or test environment),
+        // start with an empty index rather than throwing on startup.
+        _index = Directory.Exists(imageDirectory)
+            ? Directory
+                .EnumerateFiles(imageDirectory)
+                .ToDictionary(
+                    path => Slugify(Path.GetFileNameWithoutExtension(path)),
+                    path => path,
+                    StringComparer.Ordinal)
+            : [];
     }
 
     public string? GetImagePath(string cerealName) =>
