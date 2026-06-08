@@ -38,7 +38,13 @@ jobs:
         run: dotnet restore
 
       - name: Check for vulnerable packages
-        run: dotnet list package --vulnerable --include-transitive
+        run: |
+          output=$(dotnet list package --vulnerable --include-transitive)
+          echo "$output"
+          if echo "$output" | grep -q "has the following vulnerable packages"; then
+            echo "::error::Vulnerable NuGet packages detected. See output above."
+            exit 1
+          fi
 
       - name: Build
         run: dotnet build --no-restore --configuration Release
